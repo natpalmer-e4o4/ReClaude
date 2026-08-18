@@ -1,6 +1,6 @@
 {
- "name": "Context Explorer",
- "short_name": "Context",
+ "name": "ReClaude",
+ "short_name": "ReClaude",
  "description": "A flight recorder for the Claude Code context window.",
  "start_url": ".",
  "scope": ".",

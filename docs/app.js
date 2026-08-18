@@ -1,4 +1,4 @@
-/* Context Explorer SPA — parses raw session JSONL client-side and reconstructs
+/* ReClaude SPA — parses raw session JSONL client-side and reconstructs
    the effective context window at any selected record.
    Reconstruction rules (derived from real Claude Code transcripts):
    - records link via parentUuid: context-at-point = parent-chain walk to root
@@ -8,6 +8,107 @@
    - attachment kinds have different semantics: deferred_tools_delta accumulates,
      skill_listing / output_style / agent_listing supersede, mcp_instructions accumulates */
 'use strict';
+
+/* Canvas palette is read from the stylesheet, so switching themes repaints the
+   tape, minimap and lanes without any colour literals in the drawing code. */
+const CANVAS = {};
+function readThemeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback);
+  KIND_COLORS.user = v('--k-user', '#4a8fdd');
+  KIND_COLORS.attach = v('--k-attach', '#27a578');
+  KIND_COLORS.assistant = v('--k-assistant', '#c08618');
+  KIND_COLORS.tool = v('--k-tool', '#8a5fe8');
+  KIND_COLORS.srvtool = KIND_COLORS.tool;
+  KIND_COLORS.event = v('--k-event', '#d75d84');
+  CANVAS.accent = v('--accent', '#e9b949');
+  ACCENT = CANVAS.accent;
+  CANVAS.curve = v('--c-curve', '#c08618');
+  CANVAS.curveFill = v('--c-curve-fill', 'rgba(192,134,24,0.26)');
+  CANVAS.hair = v('--c-hair', 'rgba(226,234,226,0.35)');
+  CANVAS.band = v('--c-band', 'rgba(226,234,226,0.08)');
+  CANVAS.viewport = v('--c-viewport', 'rgba(226,234,226,0.12)');
+  CANVAS.grid = v('--c-grid', 'rgba(226,234,226,0.10)');
+  CANVAS.gapText = v('--c-gaptext', 'rgba(226,234,226,0.75)');
+  CANVAS.gapLine = v('--c-gapline', 'rgba(144,169,152,0.45)');
+  CANVAS.gapFill = v('--c-gapfill', 'rgba(95,122,104,0.16)');
+}
+
+/* Themes are declared here so the picker can render its own swatches — a
+   native <select> can't be themed, and its popup is drawn by the OS. */
+// `dot` is what the theme reads as at a glance — its character, not always its
+// accent (forest is green velvet even though its accent is brass)
+const THEMES = [
+  { id: 'forest', label: 'forest', mode: 'dark', bg: '#0f1a13', panel: '#16241b', dot: '#27a578' },
+  { id: 'instrument', label: 'instrument', mode: 'dark', bg: '#14181f', panel: '#1b2029', dot: '#4a8fdd' },
+  { id: 'ember', label: 'ember', mode: 'dark', bg: '#191512', panel: '#221d19', dot: '#e0904f' },
+  { id: 'paper', label: 'paper', mode: 'light', bg: '#f4f2ec', panel: '#d9d5ca', dot: '#b07a12' },
+  { id: 'linen', label: 'linen', mode: 'light', bg: '#eef1f4', panel: '#ccd4dc', dot: '#3574c4' },
+  { id: 'sage', label: 'sage', mode: 'light', bg: '#eef2ec', panel: '#cbd6c5', dot: '#1a7d5e' },
+];
+
+function themeSwatch(t) {
+  return `<span class="sw" style="background:${t.bg};border-color:${t.panel}"><i style="background:${t.dot}"></i></span>`;
+}
+
+function applyTheme(name, { persist = true } = {}) {
+  const t = THEMES.find((x) => x.id === name) || THEMES[0];
+  document.documentElement.dataset.theme = t.id;
+  if (persist) { try { localStorage.setItem('reclaude-theme', t.id); } catch {} }
+  readThemeColors();
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.innerHTML = `${themeSwatch(t)}<span class="theme-name">${esc(t.label)}</span><span class="caret">▾</span>`;
+  document.querySelectorAll('#themeMenu [role="option"]').forEach((o) => {
+    o.setAttribute('aria-selected', String(o.dataset.t === t.id));
+  });
+  const s = state.session;
+  if (s) { drawTape(s); renderRailMap(s); renderLanes(s); }
+}
+
+function initTheme() {
+  let saved = null;
+  // 'ctx-theme' is the pre-rename key, read as a fallback so a returning user keeps their theme.
+  try { saved = localStorage.getItem('reclaude-theme') || localStorage.getItem('ctx-theme'); } catch {}
+  const menu = document.getElementById('themeMenu');
+  const btn = document.getElementById('themeBtn');
+  if (!menu || !btn) { applyTheme(saved || 'forest', { persist: false }); return; }
+
+  const groups = [['dark', 'dark'], ['light', 'light']];
+  menu.innerHTML = groups.map(([mode, label]) =>
+    `<div class="theme-grp">${label}</div>` +
+    THEMES.filter((t) => t.mode === mode).map((t) =>
+      `<button type="button" role="option" data-t="${t.id}" aria-selected="false">${themeSwatch(t)}<span class="theme-name">${esc(t.label)}</span></button>`).join('')).join('');
+
+  const opts = () => [...menu.querySelectorAll('[role="option"]')];
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  const open = () => {
+    menu.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    (opts().find((o) => o.getAttribute('aria-selected') === 'true') || opts()[0])?.focus();
+  };
+  btn.addEventListener('click', () => (menu.hidden ? open() : close()));
+  menu.addEventListener('click', (e) => {
+    const o = e.target.closest('[role="option"]');
+    if (!o) return;
+    applyTheme(o.dataset.t);
+    close();
+    btn.focus();
+  });
+  menu.addEventListener('keydown', (e) => {
+    const list = opts();
+    const i = list.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1) + list.length) % list.length]?.focus();
+    } else if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !document.getElementById('themePick').contains(e.target)) close();
+  });
+
+  const valid = saved && THEMES.some((t) => t.id === saved);
+  applyTheme(valid ? saved : 'forest', { persist: false });
+}
 
 const KIND_COLORS = {
   user: '#4a8fdd',
@@ -34,7 +135,7 @@ const LEGEND = [
   { k: 'event', f: 'compact', name: 'compaction splice', swatch: 'line',
     desc: 'Where the context window was compacted: everything left of the dashed line was dropped from the live window and replaced by a harness-written summary message (labeled "compact summary" — it is not a human turn). This filter matches both the boundary and its summary.' },
 ];
-const ACCENT = '#f0b429';
+let ACCENT = '#e9b949'; // replaced from the stylesheet by readThemeColors()
 
 const $view = document.getElementById('view');
 const state = { sessions: null, session: null };
@@ -170,6 +271,7 @@ const API = {
   file: (id, rel) => (STATIC ? `data/s/${id}/files/${rel}` : `/api/sessions/${id}/files/${encodeURIComponent(rel)}`),
   fhList: (id) => (STATIC ? `data/s/${id}/filehistory.json` : `/api/filehistory/${id}`),
   fhVersion: (id, name) => (STATIC ? `data/s/${id}/fh/${name}` : `/api/filehistory/${id}/${encodeURIComponent(name)}`),
+  memory: (id) => (STATIC ? `data/s/${id}/memory.json` : `/api/sessions/${id}/memory`),
 };
 
 async function jget(url) {
@@ -465,6 +567,7 @@ function tokensAt(model, idx) {
 // ---------- router ----------
 
 window.addEventListener('hashchange', route);
+initTheme();
 route();
 
 async function route() {
@@ -505,7 +608,7 @@ async function staticSearch(sessions, q) {
 }
 
 async function homeView() {
-  document.title = 'Context Explorer';
+  document.title = 'ReClaude';
   document.body.classList.remove('session-mode');
   const sessions = await jget(API.sessions()); // sorted by last activity, newest first
   const byRoot = {};
@@ -515,7 +618,7 @@ async function homeView() {
 
   $view.innerHTML = `
     <header class="masthead">
-      <h1>Context <span class="dim">Explorer</span></h1>
+      <h1><span class="dim">Re</span>Claude</h1>
       <span class="sub">flight recorder for the Claude Code context window</span>
     </header>
     <div class="searchbar">
@@ -607,7 +710,7 @@ async function sessionView(id) {
     try { snapshots.push({ name, data: await jget(API.snapshot(id, name)) }); } catch {}
   }
   const title = manifest.customTitle || manifest.title || id;
-  document.title = `${title} — Context Explorer`;
+  document.title = `${title} — ReClaude`;
 
   JSON_STORE = [];
   const s = {
@@ -634,7 +737,7 @@ async function sessionView(id) {
     <div id="agentFocusBar" class="agent-focus-bar" style="display:none"></div>
     <div class="tape-wrap">
       <div class="tape-head">
-        <span class="eyebrow">context tape — click places the playhead · drag zooms the timeline · double-click resets</span>
+        <span class="eyebrow">context tape — click to select a moment · drag to zoom · double-click resets</span>
         <span class="zoom-ctl">
           <span class="readout" id="zoomInfo"></span>
           <button id="zoomOut" type="button" title="Zoom out ×2">−</button>
@@ -648,6 +751,10 @@ async function sessionView(id) {
         <button id="axisToggle" class="mini-btn" type="button" title="switch the tape's x-axis">⏱ time axis</button>
         <span class="legend-right" id="legend"></span>
       </div>
+    </div>
+    <div class="panel-head">
+      <div class="tabs" id="tabs"></div>
+      <button id="sortToggle" class="mini-btn sortish" type="button" title="flip event order">▲ oldest first</button>
     </div>
     <div class="session-body">
       <div class="rail" id="railBox">
@@ -663,9 +770,7 @@ async function sessionView(id) {
         <div class="rail-list" id="rail"></div>
       </div>
       <div class="ctx-panel">
-        <div class="panel-head">
-          <div class="tabs" id="tabs"></div>
-          <button id="sortToggle" class="mini-btn" type="button" title="flip event order">▲ oldest first</button>
+        <div class="panel-search">
           <input id="sqMain" class="search-input sq" type="search" autocomplete="off" spellcheck="false" placeholder="find in view — filters rows, keeps the zoom range">
         </div>
         <div id="panel"></div>
@@ -682,7 +787,7 @@ async function sessionView(id) {
       ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;border:2px solid ${KIND_COLORS[it.k]};margin-right:5px"></span>`
       : `<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${KIND_COLORS[it.k]};margin-right:5px"></span>`;
     return `<span class="readout legend-item" data-li="${i}" tabindex="0">${sw}${esc(it.name)}</span>`;
-  }).join('') + `<button id="filterClear" class="mini-btn" style="display:none" type="button">clear filters</button>`;
+  }).join('') + `<button id="filterClear" class="mini-btn" type="button" disabled>clear filters</button>`;
   const legendTip = document.getElementById('tapeTip');
   const showLegendTip = (it, x, y) => {
     const d = LEGEND[+it.dataset.li];
@@ -871,6 +976,10 @@ async function sessionView(id) {
   renderPreview(s);
   select(s, s.sel, { scrollRail: true });
   loadAgents(s); // async; lanes appear when the companion files are parsed
+  jget(API.memory(id)).then((m) => {
+    s.memory = m;
+    if (state.session === s) { renderTabs(s); if (s.tab === 'memory') renderPanel(s); }
+  }).catch(() => { s.memory = { files: [] }; });
   // probe which real file backups exist on disk for this session
   fetch(API.fhList(id)).then((r) => (r.ok ? r.json() : null)).then((list) => {
     s.fhFiles = Array.isArray(list) ? new Set(list) : null;
@@ -1010,7 +1119,7 @@ function renderRailMap(s) {
   const uFracOf = (i) => (x(i) - 2) / Math.max(1, W - 4);
   const stripH = 10; // bottom strip: event-kind distribution
   if (mscale) {
-    g.fillStyle = 'rgba(93,101,119,0.18)';
+    g.fillStyle = CANVAS.gapFill;
     for (const sg of mscale.segs) if (sg.gap) g.fillRect(sg.x0, 0, Math.max(1.5, sg.x1 - sg.x0), H);
   }
   const y = (t) => H - stripH - 2 - (t / s._maxTok) * (H - stripH - 6);
@@ -1018,7 +1127,7 @@ function renderRailMap(s) {
   g.beginPath();
   g.moveTo(x(0), y(s._pts[0]));
   for (let i = 1; i < n; i++) g.lineTo(x(i), y(s._pts[i]));
-  g.strokeStyle = 'rgba(192,134,24,0.8)'; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = CANVAS.curve; g.lineWidth = 1; g.stroke();
   // kind distribution: bucket records into ~2px columns, stack each column's
   // kind mix proportionally — a best-effort density read at this scale
   const colW = 2;
@@ -1047,9 +1156,9 @@ function renderRailMap(s) {
   // zoom window
   const v = viewOf(s);
   if (!(v.a <= 0 && v.b >= n - 1)) {
-    g.fillStyle = 'rgba(240,180,41,0.16)';
+    g.fillStyle = 'rgba(233,185,73,0.16)';
     g.fillRect(x(v.a), 0, Math.max(2, x(v.b) - x(v.a)), H);
-    g.strokeStyle = 'rgba(240,180,41,0.6)';
+    g.strokeStyle = 'rgba(233,185,73,0.6)';
     g.strokeRect(x(v.a) + 0.5, 0.5, Math.max(2, x(v.b) - x(v.a)) - 1, H - 1);
   }
   // visible slice of the list
@@ -1062,7 +1171,7 @@ function renderRailMap(s) {
     const i1 = +rows[k1].dataset.i, i2 = +rows[k2].dataset.i;
     const bx0 = x(i1), bw = Math.max(3, x(i2) - x(i1));
     // idle: a hint. held: a grabbed object — brighter, with accent edges.
-    g.fillStyle = s._scrubbing ? 'rgba(223,228,236,0.22)' : 'rgba(223,228,236,0.12)';
+    g.fillStyle = s._scrubbing ? CANVAS.hair : CANVAS.viewport;
     g.fillRect(bx0, 0, bw, H);
     if (s._scrubbing) {
       g.fillStyle = ACCENT;
@@ -1106,8 +1215,10 @@ function applyFilter(s) {
   document.querySelectorAll('#legend .legend-item').forEach((el) => {
     el.classList.toggle('on', s.filter.has(LEGEND[+el.dataset.li].f));
   });
+  // always present, disabled when there is nothing to clear — hiding it would
+  // reflow the legend row the moment you click your first filter
   const btn = document.getElementById('filterClear');
-  if (btn) btn.style.display = s.filter.size ? '' : 'none';
+  if (btn) btn.disabled = !s.filter.size;
   drawTape(s);
   renderRail(s);
   renderPanel(s);
@@ -1418,7 +1529,7 @@ function initTape(s) {
   updateZoomReadout(s);
 }
 
-/* The playhead eases to its new record instead of teleporting, so the eye keeps
+/* The selection cursor eases to its new record instead of teleporting, so the eye keeps
    hold of both origin and destination. ~150ms of easeOutCubic on one rAF loop —
    the same work a single tape hover already costs, times ~9 frames.
    It snaps (no loop, no state left behind) when motion is off, when the
@@ -1504,18 +1615,18 @@ function drawTape(s) {
       s._gapBands.push({ px0, px1, dur: sg.dur, t0: sg.t0, t1: sg.t1 });
       g.save();
       g.beginPath(); g.rect(px0, 2, px1 - px0, bandTop - 4); g.clip();
-      g.fillStyle = 'rgba(93,101,119,0.10)';
+      g.fillStyle = CANVAS.gapFill;
       g.fillRect(px0, 2, px1 - px0, bandTop - 4);
-      g.strokeStyle = 'rgba(139,148,167,0.35)'; g.lineWidth = 1;
+      g.strokeStyle = CANVAS.gapLine; g.lineWidth = 1;
       for (let hx = px0 - bandTop; hx < px1; hx += 7) {
         g.beginPath(); g.moveTo(hx, bandTop); g.lineTo(hx + bandTop, 0); g.stroke();
       }
       g.restore();
-      g.strokeStyle = 'rgba(139,148,167,0.5)';
+      g.strokeStyle = CANVAS.gapLine;
       g.beginPath(); g.moveTo(px0 + 0.5, 2); g.lineTo(px0 + 0.5, bandTop - 2);
       g.moveTo(px1 - 0.5, 2); g.lineTo(px1 - 0.5, bandTop - 2); g.stroke();
       if (px1 - px0 >= 44) {
-        g.fillStyle = 'rgba(223,228,236,0.75)';
+        g.fillStyle = CANVAS.gapText;
         g.font = '9.5px ui-monospace, Menlo, monospace';
         g.textAlign = 'center';
         g.fillText(`⋯ ${fmtDur(sg.dur)}`, (px0 + px1) / 2, 20);
@@ -1543,13 +1654,13 @@ function drawTape(s) {
       const MIN_GAP = 32;
       let lastX = -Infinity;
       s._grid = s._grid.filter((gl) => (gl.px - lastX >= MIN_GAP ? ((lastX = gl.px), true) : false));
-      g.strokeStyle = 'rgba(223,228,236,0.10)';
+      g.strokeStyle = CANVAS.grid;
       g.lineWidth = 1;
       for (const gl of s._grid) {
         g.beginPath(); g.moveTo(gl.px + 0.5, 2); g.lineTo(gl.px + 0.5, bandTop - 2); g.stroke();
       }
       let lastLabelX = -1e9;
-      g.fillStyle = 'rgba(139,148,167,0.75)';
+      g.fillStyle = CANVAS.gapText;
       g.font = '9.5px ui-monospace, Menlo, monospace';
       for (const gl of s._grid) {
         if (gl.px - lastLabelX < 64) continue;
@@ -1564,12 +1675,12 @@ function drawTape(s) {
   g.moveTo(x(i0), y(pts[i0]));
   for (let i = i0 + 1; i <= i1; i++) g.lineTo(x(i), y(pts[i]));
   g.lineTo(x(i1), chartH + 4); g.lineTo(x(i0), chartH + 4); g.closePath();
-  g.fillStyle = 'rgba(192,134,24,0.22)';
+  g.fillStyle = CANVAS.curveFill;
   g.fill();
   g.beginPath();
   g.moveTo(x(i0), y(pts[i0]));
   for (let i = i0 + 1; i <= i1; i++) g.lineTo(x(i), y(pts[i]));
-  g.strokeStyle = '#c08618'; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = CANVAS.curve; g.lineWidth = 2; g.stroke();
 
   // tick strip by kind — ticks widen as the zoom deepens
   const tickW = Math.max(1.5, Math.min(10, ((W - 8) / (i1 - i0 + 1)) * 0.66));
@@ -1606,9 +1717,9 @@ function drawTape(s) {
   const fx = bandScale
     ? (i) => bandScale.xOfT(timeAtIdx(bandTimes, i))
     : (i) => (i / Math.max(1, n - 1)) * (W - 2 * TAPE.pad) + TAPE.pad;
-  g.fillStyle = 'rgba(223,228,236,0.08)';
+  g.fillStyle = CANVAS.band;
   g.fillRect(TAPE.pad, bandTop, W - 2 * TAPE.pad, TAPE.bandH);
-  g.fillStyle = 'rgba(240,180,41,0.35)';
+  g.fillStyle = 'rgba(233,185,73,0.35)';
   g.fillRect(fx(v.a), bandTop, Math.max(2, fx(v.b) - fx(v.a)), TAPE.bandH);
   // active filters: paint every match on the full extent so you can see where they live
   if (s.filter && s.filter.size) {
@@ -1620,7 +1731,7 @@ function drawTape(s) {
       g.fillRect(fx(i) - 0.75, bandTop, 1.5, TAPE.bandH);
     }
   }
-  const sx = s.selDraw ?? s.sel; // float drawn-index while the playhead glides
+  const sx = s.selDraw ?? s.sel; // float drawn-index while the cursor glides
   g.fillStyle = ACCENT;
   g.fillRect(fx(sx) - 1, bandTop, 2, TAPE.bandH);
 
@@ -1640,7 +1751,7 @@ function drawTape(s) {
       g.fillRect(ax, 0, 1, jawH);
       g.fillRect(bx - 1, 0, 1, jawH);
     } else {
-      g.fillStyle = 'rgba(240,180,41,0.15)';
+      g.fillStyle = 'rgba(233,185,73,0.15)';
       g.fillRect(ax, 0, bx - ax, jawH);
       g.fillStyle = ACCENT;
       g.fillRect(ax - 1, 0, 2, jawH);
@@ -1655,7 +1766,7 @@ function drawTape(s) {
       if (s.axis === 'time' && dtimes.length > 1) {
         label += ` · ${fmtDur(Math.abs(timeAtIdx(dtimes, ib) - timeAtIdx(dtimes, ia)))}`;
       }
-      g.fillStyle = belowFloor ? 'rgba(223,228,236,.5)' : 'rgba(240,180,41,.85)';
+      g.fillStyle = belowFloor ? 'rgba(223,228,236,.5)' : 'rgba(233,185,73,.85)';
       g.font = '10.5px ui-monospace, Menlo, monospace';
       g.textAlign = 'center';
       g.fillText(label, (ax + bx) / 2, bandTop + TAPE.bandH - 1);
@@ -1665,7 +1776,7 @@ function drawTape(s) {
 
   // hover crosshair
   if (s.hover != null && s.hover >= i0 && s.hover <= i1) {
-    g.strokeStyle = 'rgba(223,228,236,0.35)'; g.lineWidth = 1;
+    g.strokeStyle = CANVAS.hair; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x(s.hover), 0); g.lineTo(x(s.hover), bandTop - 2); g.stroke();
   }
   // selection cursor
@@ -1756,9 +1867,9 @@ function enterAgentFocus(s, a) {
   const bar = document.getElementById('agentFocusBar');
   bar.style.display = '';
   bar.innerHTML = `
+    <button class="mini-btn" id="afbBack" type="button">⟵ back to session (Esc)</button>
     <span class="afb-label">⧉ sub-agent · <b>${esc(a.meta.agentType || 'agent')}</b> — ${esc(a.meta.description || a.id)} · ${a.model.content.length} records · ${esc(fmtDur(a.t1 - a.t0))} · depth ${a.meta.spawnDepth ?? '?'}</span>
-    ${spawnIdx >= 0 ? `<button class="mini-btn" id="afbSpawn" type="button">↧ spawn point</button>` : ''}
-    <button class="mini-btn" id="afbBack" type="button">⟵ back to session (Esc)</button>`;
+    ${spawnIdx >= 0 ? `<button class="mini-btn" id="afbSpawn" type="button">↧ spawn point</button>` : ''}`;
   document.getElementById('afbBack').addEventListener('click', () => exitAgentFocus(s));
   const sp = document.getElementById('afbSpawn');
   if (sp) sp.addEventListener('click', () => { exitAgentFocus(s); select(s, spawnIdx, { scrollRail: true }); });
@@ -1895,36 +2006,61 @@ function renderLanes(s) {
 // ---------- tabs + panels ----------
 
 function renderTabs(s) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  // short labels + counts as light superscripts: nine tabs have to fit one row
+  // without wrapping or horizontal scrolling
   const tabs = [
-    ['timeline', 'Timeline'],
-    ['context', 'Context window'],
-    ['snapshot', `Snapshot${s.snapshots.length ? ` (${s.snapshots.length})` : ''}`],
-    ['files', `Files (${(s.manifest.files || []).length})`],
+    ['timeline', 'Timeline', 0],
+    ['context', 'Context', 0],
+    ['sep1', '', 0],
+    ['sysprompt', 'Prompt', (snap?.systemPrompt || []).length],
+    ['tools', 'Tools', (snap?.tools || []).length || st.deferredTools.size],
+    ['skills', 'Skills', st.skillListing?.skillCount || 0],
+    ['mcp', 'MCP', st.mcpInstructions.length],
+    ['memory', 'Memory', (s.memory?.files || []).filter((f) => f.name !== 'MEMORY.md').length],
+    ['sep2', '', 0],
+    ['snapshot', 'Snapshot', s.snapshots.length],
+    ['files', 'Files', (s.manifest.files || []).length],
   ];
   // build once, then update in place: select() calls renderTabs on every
   // selection, and rebuilding the nodes both restarts the pill transition and
   // re-binds four click listeners thousands of times a session
   const tabsEl = document.getElementById('tabs');
+  const realTabs = tabs.filter(([k]) => !k.startsWith('sep')); // separators aren't buttons
   let btns = [...tabsEl.querySelectorAll('button')];
-  if (btns.length !== tabs.length) {
-    tabsEl.innerHTML = tabs.map(([k]) => `<button data-tab="${k}"></button>`).join('');
+  if (btns.length !== realTabs.length) {
+    tabsEl.innerHTML = tabs.map(([k]) => (k.startsWith('sep')
+      ? '<span class="tab-sep" aria-hidden="true"></span>'
+      : `<button data-tab="${k}"></button>`)).join('');
     btns = [...tabsEl.querySelectorAll('button')];
     btns.forEach((b) => b.addEventListener('click', () => { s.tab = b.dataset.tab; renderTabs(s); renderPanel(s); }));
   }
   btns.forEach((b, i) => {
-    const [k, label] = tabs[i];
+    const [k, label, count] = realTabs[i];
     if (b.dataset.tab !== k) b.dataset.tab = k;
-    if (b.textContent !== label) b.textContent = label; // labels carry live counts
+    const sig = `${label}|${count}`;
+    if (b.dataset.sig !== sig) { // counts are live; only touch the DOM when they move
+      b.dataset.sig = sig;
+      b.innerHTML = `${esc(label)}${count ? `<span class="tab-n">${count}</span>` : ''}`;
+    }
     b.classList.toggle('on', s.tab === k);
   });
   // sort order and find-in-view only make sense on the event-list tabs
   const listy = s.tab === 'timeline' || s.tab === 'context';
+  const searchable = listy || ['sysprompt', 'tools', 'skills', 'mcp', 'memory'].includes(s.tab);
   const sortBtn = document.getElementById('sortToggle');
   if (sortBtn) sortBtn.style.display = listy ? '' : 'none';
-  const sqMain = document.getElementById('sqMain');
-  if (sqMain) sqMain.style.display = listy ? '' : 'none';
-  const phead = document.querySelector('.panel-head');
-  if (phead) document.querySelector('.ctx-panel')?.style.setProperty('--pheadH', phead.offsetHeight + 'px');
+  const sqWrap = document.querySelector('.panel-search');
+  if (sqWrap) sqWrap.style.display = searchable ? '' : 'none';
+  // section heads pin below the finder band when it is showing, so the two
+  // never overlap (the finder would otherwise clip the head card's corners)
+  const panelEl = document.querySelector('.ctx-panel');
+  if (panelEl) {
+    const band = panelEl.querySelector('.panel-search');
+    const h = band && band.style.display !== 'none' ? band.offsetHeight : 0;
+    panelEl.style.setProperty('--pheadH', h + 'px');
+  }
 }
 
 function roleOf(r, kind, opts = {}) {
@@ -1939,7 +2075,7 @@ function roleOf(r, kind, opts = {}) {
 
 function chipsHtml(counts, s) {
   return Object.keys(counts).map((k) =>
-    `<span class="chip chip-f${s.filter?.has(k) ? ' on' : ''}" data-f="${esc(k)}" role="button" tabindex="0" title="click to filter by ${esc(KIND_LABELS[k] || k)} · click again to remove" style="border-color:${KIND_COLORS[k] || 'var(--line)'}">${esc(KIND_LABELS[k] || k)} ${counts[k]}</span>`).join('');
+    `<span class="chip chip-f${s.filter?.has(k) ? ' on' : ''}" data-f="${esc(k)}" role="button" tabindex="0" title="click to filter by ${esc(KIND_LABELS[k] || k)} · click again to remove" style="--chip-c:${KIND_COLORS[k] || 'var(--line)'}">${esc(KIND_LABELS[k] || k)} ${counts[k]}</span>`).join('');
 }
 
 function layer(title, badge, bodyHtml, open = false, cls = '') {
@@ -1988,10 +2124,17 @@ function renderPanel(s) {
   const panel = document.getElementById('panel');
   PV_ITEMS = [];
   if (s.tab === 'context') renderContextTab(s, panel);
+  else if (s.tab === 'sysprompt') renderSysPromptTab(s, panel);
+  else if (s.tab === 'tools') renderToolsTab(s, panel);
+  else if (s.tab === 'skills') renderSkillsTab(s, panel);
+  else if (s.tab === 'mcp') renderMcpTab(s, panel);
+  else if (s.tab === 'memory') renderMemoryTab(s, panel);
   else if (s.tab === 'snapshot') renderSnapshotTab(s, panel);
   else if (s.tab === 'files') renderFilesTab(s, panel);
   else renderTimelineTab(s, panel); // 'timeline' and any legacy tab id
   initJsonBlocks(panel);
+  const head = panel.querySelector('.range-head');
+  panel.parentElement?.style.setProperty('--rheadH', (head ? head.offsetHeight : 0) + 'px');
 }
 
 /* Range view: what happened inside the zoomed window — the span complement to
@@ -2077,57 +2220,146 @@ function renderTimelineTab(s, panel) {
   if (focusEl) settleIntoView(focusEl, { block: 'center' });
 }
 
-function buildSystemLayers(s) {
-  const st = stateAt(s.model, s.sel);
-  const snap = s.snapshots[s.snapIdx]?.data;
-  const q = (s.q || '').toLowerCase();
-  const qm = (...texts) => !q || texts.some((t) => String(t || '').toLowerCase().includes(q));
-  const sys = [];
-  if (snap) {
-    const sysSecs = (snap.systemPrompt || []).filter((sec) => qm(sec.title, sec.content));
-    const snapSel = s.snapshots.length > 1 ? `<select class="pill-select" id="snapSel">${s.snapshots.map((sn, i) =>
-      `<option value="${i}"${i === s.snapIdx ? ' selected' : ''}>${esc(sn.data.exportedAt || sn.name)}</option>`).join('')}</select>` : '';
-    sys.push(layer('System prompt — as transcribed', `${sysSecs.length} sections · exported ${esc(fmtTime(snap.exportedAt))} ${snapSel}`,
-      `<p class="note">Transcribed by the model from its own context at export time; the model is the sensor here and transcription can be lossy. Not stored anywhere on disk by Claude Code.</p>` +
-      sysSecs.map((sec) => pvRow(
-        { kind: 'text', badge: 'system prompt section', color: 'var(--k-attach)', title: sec.title, sub: sec.provenance === 'library' ? 'from shared cache' : 'as transcribed', content: sec.content },
-        { icon: '§', color: 'var(--k-attach)', label: sec.title, sub: sec.provenance === 'library' ? '⟲ cached' : '' })).join('')));
-    const toolList = (snap.tools || []).filter((t) => qm(t.name, t.description));
-    if (toolList.length) {
-      sys.push(layer('Tool definitions — as transcribed', `${toolList.length} tools`,
-        toolList.map((t) => pvRow(
-          { kind: 'tool', badge: 'tool definition', color: 'var(--k-tool)', tool: t, sub: t.provenance === 'library' ? 'from shared cache' : 'as transcribed' },
-          { icon: '⚒', color: 'var(--k-tool)', label: `${t.name} — ${(t.description || '').slice(0, 80)}`, sub: t.provenance === 'library' ? '⟲ cached' : '' })).join('')));
-    }
-    const ruleList = (snap.rules || []).filter((f) => qm(f.path, f.content));
-    if (ruleList.length) {
-      sys.push(layer('Rules & memory files', `${ruleList.length} files`,
-        ruleList.map((f) => pvRow(
-          { kind: 'text', badge: 'rules file', color: 'var(--k-user)', title: f.path, content: f.content },
-          { icon: '✎', color: 'var(--k-user)', label: f.path })).join('')));
-    }
-  } else {
-    sys.push(layer('System prompt', 'no snapshot', `<p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/context-export</code> run from within the live session can capture them.</p>`));
-  }
-  const tools = [...st.deferredTools].sort();
-  sys.push(layer('Deferred tools surfaced so far', `${tools.length} names · cumulative`,
-    tools.length ? `<div class="chiplist">${tools.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '<p class="hint">None yet at this point.</p>'));
-  if (st.skillListing) {
-    sys.push(layer('Skill listing in effect', `${st.skillListing.skillCount ?? '?'} skills${st.skillListing.isInitial ? ' · initial' : ''}`,
-      `<pre class="block">${esc(String(st.skillListing.content || (st.skillListing.names || []).join('\n')))}</pre>`));
-  }
-  if (st.mcpInstructions.length) {
-    sys.push(layer('MCP server instructions', `${st.mcpInstructions.length} delta(s)`,
-      st.mcpInstructions.map((a) => `<pre class="block">${esc(String(a.content || JSON.stringify(a, null, 2)))}</pre>`).join('')));
-  }
-  if (st.outputStyle) {
-    sys.push(layer('Output style (latest)', 'superseding',
-      `<pre class="block">${esc(String(st.outputStyle.content || JSON.stringify(st.outputStyle, null, 2)))}</pre>`));
-  }
-  return sys.join('');
+/* Ground-truth tabs. These four render the material that governs the whole
+   session — the prompt head — split by kind so each is browsable on its own.
+   All of them honour the in-view search. */
+function groundHead(s, title, badge, note) {
+  return `<div class="range-head"><div class="range-card">
+      <div class="rh-row">
+        <span class="eyebrow" style="color:var(--accent)">${esc(title)}</span>
+        <span class="rh-badge">${esc(badge)}${s.q ? ' · filtered' : ''}</span>
+      </div>
+      ${note ? `<p class="note" style="margin:8px 0 0">${note}</p>` : ''}
+    </div></div>`;
 }
 
-/* The Context window tab: what the model sees at the playhead, laid out like a
+const noSnapshotWarning = `<div class="layer"><div class="body"><p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/context-export</code> run from within the live session can capture them.</p></div></div>`;
+
+function snapPicker(s) {
+  return s.snapshots.length > 1
+    ? `<select class="pill-select" id="snapSel">${s.snapshots.map((sn, i) =>
+        `<option value="${i}"${i === s.snapIdx ? ' selected' : ''}>${esc(sn.data.exportedAt || sn.name)}</option>`).join('')}</select>`
+    : '';
+}
+
+function wireSnapPicker(s) {
+  const el = document.getElementById('snapSel');
+  if (el) el.addEventListener('change', (e) => { s.snapIdx = +e.target.value; select(s, s.sel, { keepSnap: true }); });
+}
+
+function qmOf(s) {
+  const q = (s.q || '').toLowerCase();
+  return (...texts) => !q || texts.some((t) => String(t || '').toLowerCase().includes(q));
+}
+
+function renderSysPromptTab(s, panel) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const secs = (snap?.systemPrompt || []).filter((x) => qm(x.title, x.content));
+  const rules = (snap?.rules || []).filter((f) => qm(f.path, f.content));
+  const parts = [groundHead(s, 'system prompt · ground truth',
+    snap ? `${secs.length} sections · exported ${fmtTime(snap.exportedAt)} ${snapPicker(s)}` : 'no snapshot',
+    'Transcribed by the model from its own context at export time — the model is the sensor here, and transcription can be lossy. This text is never stored on disk by Claude Code.')];
+  parts.push(snap
+    ? layer('Sections, in prompt order', `${secs.length}`, secs.length ? secs.map((sec) => pvRow(
+        { kind: 'text', badge: 'system prompt section', color: 'var(--k-attach)', title: sec.title, sub: sec.provenance === 'library' ? 'from shared cache' : 'as transcribed', content: sec.content },
+        { icon: '§', color: 'var(--k-attach)', label: sec.title, sub: sec.provenance === 'library' ? '⟲ cached' : '' })).join('') : '<p class="hint">No sections match the search.</p>', true)
+    : noSnapshotWarning);
+  if (rules.length) {
+    parts.push(layer('Rules & memory files', `${rules.length} files`, rules.map((f) => pvRow(
+      { kind: 'text', badge: 'rules file', color: 'var(--k-user)', title: f.path, content: f.content },
+      { icon: '✎', color: 'var(--k-user)', label: f.path })).join(''), true));
+  }
+  if (st.outputStyle) {
+    parts.push(layer('Output style in effect', 'latest supersedes',
+      `<pre class="block">${esc(String(st.outputStyle.content || JSON.stringify(st.outputStyle, null, 2)))}</pre>`));
+  }
+  panel.innerHTML = parts.join('');
+  wireSnapPicker(s);
+}
+
+function renderToolsTab(s, panel) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const tools = (snap?.tools || []).filter((t) => qm(t.name, t.description));
+  const deferred = [...st.deferredTools].sort().filter((t) => qm(t));
+  const parts = [groundHead(s, 'tools · ground truth',
+    `${tools.length} transcribed · ${deferred.length} deferred names`,
+    'Transcribed definitions are the full schemas the model could see. Deferred tools are names surfaced into context whose schemas only load when fetched with ToolSearch.')];
+  parts.push(snap
+    ? layer('Definitions — as transcribed', `${tools.length} tools ${snapPicker(s)}`, tools.length ? tools.map((t) => pvRow(
+        { kind: 'tool', badge: 'tool definition', color: 'var(--k-tool)', tool: t, sub: t.provenance === 'library' ? 'from shared cache' : 'as transcribed' },
+        { icon: '⚒', color: 'var(--k-tool)', label: `${t.name} — ${(t.description || '').slice(0, 80)}`, sub: t.provenance === 'library' ? '⟲ cached' : '' })).join('') : '<p class="hint">No tools match the search.</p>', true)
+    : noSnapshotWarning);
+  parts.push(layer('Deferred tools surfaced so far', `${deferred.length} names · cumulative up to the selected record`,
+    deferred.length ? `<div class="chiplist">${deferred.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '<p class="hint">None at this point in the session.</p>', true));
+  panel.innerHTML = parts.join('');
+  wireSnapPicker(s);
+}
+
+function renderSkillsTab(s, panel) {
+  const st = stateAt(s.model, s.sel);
+  const listing = st.skillListing;
+  const body = listing ? String(listing.content || (listing.names || []).join('\n')) : '';
+  const q = (s.q || '').toLowerCase();
+  const shown = q ? body.split('\n').filter((l) => l.toLowerCase().includes(q)).join('\n') : body;
+  panel.innerHTML = groundHead(s, 'skills · ground truth',
+    listing ? `${listing.skillCount ?? '?'} skills${listing.isInitial ? ' · initial listing' : ''}` : 'none in context',
+    'The skill listing injected into context — what the model could invoke at this point in the session.') +
+    (listing
+      ? layer('Skill listing in effect', `${listing.skillCount ?? '?'} skills`,
+          `<pre class="block">${esc(shown || '(no lines match the search)')}</pre>`, true)
+      : `<div class="layer"><div class="body"><p class="hint">No skill listing had been injected into context by this point.</p></div></div>`);
+}
+
+function renderMcpTab(s, panel) {
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const deltas = st.mcpInstructions.filter((a) => qm(a.content));
+  panel.innerHTML = groundHead(s, 'mcp · ground truth',
+    `${st.mcpInstructions.length} delta(s)`,
+    'Instructions supplied by connected MCP servers, injected into context as they connect. Tool schemas for MCP tools arrive separately and appear under Tools once fetched.') +
+    (deltas.length
+      ? deltas.map((a, i) => layer(`Server instructions · delta ${i + 1}`, '',
+          `<pre class="block">${esc(String(a.content || JSON.stringify(a, null, 2)))}</pre>`, deltas.length === 1)).join('')
+      : `<div class="layer"><div class="body"><p class="hint">${st.mcpInstructions.length ? 'No deltas match the search.' : 'No MCP server instructions in context at this point.'}</p></div></div>`);
+}
+
+function renderMemoryTab(s, panel) {
+  const mem = s.memory;
+  if (!mem) { panel.innerHTML = groundHead(s, 'memory · ground truth', 'loading…', ''); return; }
+  const qm = qmOf(s);
+  const files = (mem.files || []).filter((f) => qm(f.name, f.content));
+  const index = files.find((f) => f.name === 'MEMORY.md');
+  const entries = files.filter((f) => f.name !== 'MEMORY.md');
+  // frontmatter is metadata, not prose: surface type/description in the row
+  const meta = (content) => {
+    const m = /^---\n([\s\S]*?)\n---/.exec(content || '');
+    if (!m) return {};
+    const get = (k) => (new RegExp(`^\\\\s*${k}:\\\\s*(.+)$`, 'm').exec(m[1]) || [])[1]?.replace(/^["']|["']$/g, '').trim();
+    return { type: get('type'), description: get('description') };
+  };
+  const parts = [groundHead(s, 'memory · ground truth',
+    `${entries.length} memories${mem.slug ? ` · ${mem.slug}` : ''}`,
+    'Claude\'s persistent memory for this project — the facts it carries into every session here. MEMORY.md is the index loaded at startup; each entry is a single fact with typed frontmatter. Read-only.')];
+  if (index) {
+    parts.push(layer('MEMORY.md — the index loaded every session', `${(index.content || '').split('\n').filter((l) => l.trim()).length} lines`,
+      `<pre class="block">${esc(index.content)}</pre>`, true));
+  }
+  parts.push(layer('Memories', `${entries.length}`, entries.length
+    ? entries.map((f) => {
+        const md = meta(f.content);
+        return pvRow(
+          { kind: 'text', badge: `memory · ${md.type || 'untyped'}`, color: 'var(--k-attach)', title: f.name, sub: f.modified ? fmtTime(f.modified) : '', content: f.content },
+          { icon: '⌘', color: 'var(--k-attach)', label: md.description ? `${f.name} — ${md.description}` : f.name, sub: md.type || '' });
+      }).join('')
+    : `<p class="hint">${(mem.files || []).length ? 'No memories match the search.' : 'No memory directory for this project yet — Claude writes one when it learns something durable.'}</p>`, true));
+  panel.innerHTML = parts.join('');
+}
+
+/* The Context window tab: what the model sees at the selected record, laid out like a
    real context window — prompt head first, then the message window. */
 function renderContextTab(s, panel) {
   const rec = s.model.content[s.sel];
@@ -2144,7 +2376,7 @@ function renderContextTab(s, panel) {
     <div class="range-head">
       <div class="range-card">
         <div class="rh-row">
-          <span class="eyebrow" style="color:var(--accent)">context window · at the playhead</span>
+          <span class="eyebrow" style="color:var(--accent)">context window · at the selected record</span>
           <span class="rh-badge">record ${s.sel + 1} of ${s.model.content.length}${s.filter?.size || s.q ? ' · filtered' : ''}</span>
         </div>
         <div class="kv" style="margin:8px 0 10px">
@@ -2157,11 +2389,7 @@ function renderContextTab(s, panel) {
       </div>
     </div>
     <div class="ctx-group">
-      <div class="group-head eyebrow">prompt head — system prompt · tools · rules · injected state</div>
-      ${buildSystemLayers(s)}
-    </div>
-    <div class="ctx-group">
-      <div class="group-head eyebrow">message window — everything after the prompt head</div>
+      <div class="group-head eyebrow">message window — what follows the prompt head (System prompt · Tools · Skills · MCP tabs)</div>
       ${(s.sortDesc ? [...shown].reverse() : shown).map((r) => renderMsg(r, focusUuid, deltasOf(s.model), { orchestrator: !!s.agentFocus, durs: durationsOf(s.model) })).join('')}
     </div>`;
   const snapSelEl = document.getElementById('snapSel');

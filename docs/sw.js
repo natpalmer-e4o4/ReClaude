@@ -1,5 +1,5 @@
-/* Context Explorer static demo — precache everything, serve cache-first. */
-const CACHE = 'ctx-explorer-1787092083';
+/* ReClaude static demo — precache everything, serve cache-first. */
+const CACHE = 'reclaude-1787095679';
 const ASSETS = [
 "index.html",
 "app.css",
@@ -16,6 +16,7 @@ const ASSETS = [
 "data/s/a9107ddb-a748-442b-bb88-23d87b823014/snapshots/snapshot-build-session.json",
 "data/s/a9107ddb-a748-442b-bb88-23d87b823014/files/subagents/agent-ae050d421718d1294.jsonl",
 "data/s/a9107ddb-a748-442b-bb88-23d87b823014/files/subagents/agent-ae050d421718d1294.meta.json",
+"data/s/a9107ddb-a748-442b-bb88-23d87b823014/memory.json",
 "data/s/a9107ddb-a748-442b-bb88-23d87b823014/filehistory.json"
 ];
 self.addEventListener('install', (e) => {
