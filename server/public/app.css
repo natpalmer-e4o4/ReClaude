@@ -64,7 +64,8 @@ a:hover { text-decoration: underline; }
 .session-list { display: flex; flex-direction: column; gap: 10px; padding: 18px 0 60px; }
 .session-card {
   display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
-  padding: 14px 18px; color: inherit; transition: border-color .15s;
+  padding: 14px 18px; color: inherit;
+  transition: border-color .15s, transform .09s cubic-bezier(.2,.7,.3,1);
 }
 .session-card:hover { border-color: var(--accent); text-decoration: none; }
 .session-card .row1 { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
@@ -95,7 +96,9 @@ a:hover { text-decoration: underline; }
 .tape-head { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 4px; gap: 10px; flex-wrap: wrap; }
 .legend-row { align-items: center; }
 .legend-right { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
-.tape-head .readout { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+/* tabular figures: the readout is rewritten on every scrub — proportional digits
+   would make the whole line's metrics twitch */
+.tape-head .readout { font-family: var(--mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
 .tape-head .readout b { color: var(--accent); font-weight: 600; }
 canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; border-radius: 6px; background: var(--panel); }
 .tape-tip {
@@ -109,14 +112,22 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 .zoom-ctl button {
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
   border-radius: 5px; font: 600 11px var(--mono); padding: 2px 9px; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .zoom-ctl button:hover { color: var(--accent); border-color: var(--accent); }
-.legend-item { cursor: pointer; padding: 1px 7px; border-radius: 5px; border: 1px solid transparent; user-select: none; }
+.legend-item {
+  cursor: pointer; padding: 1px 7px; border-radius: 5px; border: 1px solid transparent; user-select: none;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
+}
 .legend-item:hover { color: var(--ink); border-color: var(--line); }
 .legend-item.on { color: var(--ink); border-color: var(--accent); background: rgba(240, 180, 41, 0.08); }
 .mini-btn {
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
   border-radius: 5px; font: 600 11px var(--mono); padding: 2px 9px; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .mini-btn:hover { color: var(--accent); border-color: var(--accent); }
 
@@ -127,6 +138,8 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   background: var(--panel); color: var(--muted); border: 1px solid var(--line);
   border-radius: 8px; padding: 7px 12px; cursor: pointer; text-align: left;
   font: 12px var(--mono); user-select: none;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .snap-chip:hover { color: var(--ink); border-color: var(--accent); }
 .snap-chip.on { color: var(--ink); border-color: var(--accent); background: rgba(240, 180, 41, 0.08); }
@@ -157,16 +170,17 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   display: grid; grid-template-columns: 10px 118px 1fr; gap: 10px; align-items: baseline;
   padding: 6px 12px; cursor: pointer; border-left: 3px solid transparent;
   font-family: var(--mono); font-size: 12.5px;
+  transition: background-color .1s linear, border-left-color .14s cubic-bezier(.2,.7,.3,1);
 }
 .rec:hover { background: var(--panel-2); }
 .rec.sel { background: var(--panel-2); border-left-color: var(--accent); }
-.rec .dot { width: 8px; height: 8px; border-radius: 2px; align-self: center; }
+.rec .dot { width: 8px; height: 8px; border-radius: 2px; align-self: center; transition: transform .12s cubic-bezier(.2,.7,.3,1); }
 .rec .dot-hollow { background: transparent; border: 2px solid; width: 8px; height: 8px; }
 .rec .kind { color: var(--muted); font-size: 11px; letter-spacing: .04em; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec .prev { color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rec.sidechain { opacity: .45; }
 .rec.ctx-out .prev, .rec.ctx-out .kind { color: var(--faint); }
-.rec.compact-row { background: rgba(215,93,132,.08); }
+.rec.compact-row { background: rgba(215,93,132,.08); transition: background .14s ease, box-shadow .14s ease; }
 
 /* ---------- context panel ---------- */
 .ctx-panel { min-width: 0; }
@@ -181,6 +195,8 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   background: var(--panel); color: var(--muted); border: 1px solid var(--line);
   border-radius: 6px; padding: 6px 14px; font: 600 12px var(--sans);
   letter-spacing: .08em; text-transform: uppercase; cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .tabs button.on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
 /* no overflow:hidden here — it would trap position:sticky summaries; corner
@@ -211,9 +227,14 @@ pre.block {
 .gauge .parts { font-family: var(--mono); font-size: 12px; color: var(--muted); }
 .chiplist { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip { font-family: var(--mono); font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--ink); }
-.chip-f { cursor: pointer; user-select: none; }
+.chip-f {
+  cursor: pointer; user-select: none;
+  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
+}
 .chip-f:hover { background: var(--panel-2); }
-.chip-f.on { background: rgba(240, 180, 41, 0.12); outline: 1px solid var(--accent); }
+/* ON ring is an inset shadow, not an outline — the outline belongs to focus alone */
+.chip-f.on { background: rgba(240, 180, 41, 0.12); box-shadow: inset 0 0 0 1px var(--accent); }
 .chip.new { border-color: var(--k-attach); color: var(--k-attach); }
 
 /* message thread inside context tab */
@@ -374,7 +395,7 @@ body.session-mode .preview-pane { min-height: 0; }
 @media (max-width: 1100px) { .pv-body { max-height: 60vh; } }
 
 /* flat rows in the main view (expansion moved to the preview pane) */
-.msg.mrow { display: flex; gap: 10px; align-items: baseline; padding: 7px 12px; font-family: var(--mono); font-size: 12.5px; cursor: pointer; }
+.msg.mrow { display: flex; gap: 10px; align-items: baseline; padding: 7px 12px; font-family: var(--mono); font-size: 12.5px; cursor: pointer; transition: background-color .1s linear, box-shadow .14s; }
 .msg.mrow .role { font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .msg.mrow .prev { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1; }
 .msg.mrow .tok-d { font-size: 10.5px; color: var(--accent); white-space: nowrap; }
@@ -413,3 +434,72 @@ body.dragging { user-select: none; }
 .tape-wrap { user-select: none; } /* a drag can never smear a selection across readout/legend */
 .rail-map { transition: box-shadow .12s; }
 .rail-map.scrubbing { box-shadow: inset 0 0 0 1px rgba(240, 180, 41, .35); }
+
+/* === interaction: chrome & rows (WS-B) === */
+/* Three intensities of one mechanism: a hairline cap at rest, a hard amber
+   hairline in a soft bloom on keyboard focus, 1px of downward travel under the
+   finger. Amber stays the STATE signal; travel is the TOUCH signal. */
+
+/* on-state caps: the fill is already amber, so the raised edge reads white */
+.tabs button.on,
+.mini-btn.on,
+.legend-item.on,
+.snap-chip.on { box-shadow: inset 0 1px 0 rgba(255,255,255,.10); }
+
+/* keyboard focus on small controls — hairline inside a bloom, not a floating box */
+.mini-btn:focus-visible,
+.zoom-ctl button:focus-visible,
+.tabs button:focus-visible,
+.legend-item:focus-visible,
+.snap-chip:focus-visible,
+.chip-f:focus-visible,
+.lane-bar:focus-visible,
+.lane-chip:focus-visible,
+.lane-pop-item:focus-visible {
+  outline: 1px solid var(--accent); outline-offset: 1px;
+  box-shadow: 0 0 0 3px rgba(240,180,41,.12);
+}
+/* on + focused: keep the ON ring, add the bloom */
+.chip-f.on:focus-visible { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgba(240,180,41,.12); }
+
+/* key travel — the cap bottoms out and springs back */
+.mini-btn:active,
+.zoom-ctl button:active,
+.tabs button:active,
+.legend-item:active,
+.snap-chip:active,
+.chip-f:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,.38);
+}
+/* the card stays on the deck: no hover lift, no drop shadow — it only sinks */
+.session-card:active { transform: translateY(1px); }
+
+/* row detent — the press is a dimmer draft of the selection tick, same channel */
+.rec:active { background: var(--panel-2); border-left-color: rgba(240,180,41,.40); }
+.msg.mrow:active { background: var(--panel-2); box-shadow: inset 3px 0 0 rgba(240,180,41,.40); }
+
+/* keyboard focus on rows — same channels, one notch brighter, never an outline */
+.rec:focus-visible {
+  outline: none; background: var(--panel-2);
+  border-left-color: rgba(240,180,41,.55);
+  box-shadow: inset 0 0 0 1px rgba(240,180,41,.20);
+}
+.msg.mrow:focus-visible {
+  outline: none; background: var(--panel-2);
+  box-shadow: inset 3px 0 0 rgba(240,180,41,.55), inset 0 0 0 1px rgba(240,180,41,.20);
+}
+/* a committed selection never dims under press or focus */
+.rec.sel:active, .rec.sel:focus-visible { border-left-color: var(--accent); }
+
+/* the kind dot takes weight under the pointer — transform only, no layout */
+.rec:hover .dot { transform: scale(1.15); }
+/* the loudest fact in the rail answers the pointer in the same flat vocabulary */
+.rec.compact-row:hover { background: rgba(215,93,132,.16); box-shadow: inset 3px 0 0 var(--k-event); }
+
+/* inputs: the existing focus border gains depth instead of a detached ring */
+.search-input:focus-visible,
+.pill-select:focus-visible {
+  outline: none; border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(240,180,41,.10);
+}
