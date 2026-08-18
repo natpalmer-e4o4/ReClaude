@@ -10,13 +10,14 @@ exist *only* inside the model's context are captured by invoking the
 
 ### 🔎 [Live demo →](https://natpalmer-e4o4.github.io/ContextExplorer/)
 
-The demo is a static, installable build carrying the redacted session in which this
-tool was built — so you can explore the construction of the viewer *in* the viewer.
-No install, no server. *(Published once the static build lands; see "Demo mode".)*
+A static, installable build carrying the redacted session in which this tool was
+built — so you can explore the construction of the viewer *in* the viewer. No
+install, no server, works offline once loaded.
 
 ![zero dependencies](https://img.shields.io/badge/dependencies-none-27a578)
 ![node](https://img.shields.io/badge/node-%E2%89%A518-4a8fdd)
 ![docker optional](https://img.shields.io/badge/docker-optional-8a5fe8)
+![license MIT](https://img.shields.io/badge/license-MIT-c08618)
 
 ## Why a skill does the export
 
@@ -76,6 +77,18 @@ docker compose up -d --build         # bakes it into the image
 The script holds the redaction map, swaps every embedded image for the SVG
 placeholder, validates all JSON, and hard-fails if any identifier survives.
 
+## Static / PWA build
+
+```bash
+task static     # or: python3 scripts/build-static-demo.py
+```
+
+Boots the server with `DEMO_SEED=1`, harvests its real API responses into flat
+files, and emits `docs/` — the SPA plus the seed data, a web app manifest, and a
+service worker that precaches everything. The same `app.js` runs in both modes:
+a `window.CTX_STATIC` flag flips every request from `/api/…` to a relative file
+path, and search falls back to a client-side scan. GitHub Pages serves `docs/`.
+
 ## What the viewer shows
 
 - **Context tape** — the signature instrument: an area chart of tokens-in-window
@@ -113,3 +126,7 @@ docker-compose.yml
 Storage inside the container volume: `sessions/<id>/transcript.jsonl` (verbatim),
 `meta.json` (computed at import), `snapshots/*.json`, `files/…`. All
 reconstruction happens client-side, so re-imports and viewer upgrades are free.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

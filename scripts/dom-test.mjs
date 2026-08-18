@@ -7,7 +7,17 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const html = fs.readFileSync(ROOT + 'server/public/index.html', 'utf8');
 const appjs = fs.readFileSync(ROOT + 'server/public/app.js', 'utf8');
 
-const sessions = await (await fetch(`${BASE}/api/sessions`)).json();
+// works against the server API or a static build (docs/)
+let sessions, isStatic = false;
+try {
+  const r = await fetch(`${BASE}/api/sessions`);
+  if (!r.ok) throw new Error('no api');
+  sessions = await r.json();
+} catch {
+  sessions = await (await fetch(`${BASE}/data/sessions.json`)).json();
+  isStatic = true;
+  console.log('(static build detected)');
+}
 const target = process.env.SESSION || (sessions.find((s) => s.snapshotCount > 0) || sessions[0])?.sessionId;
 if (!target) { console.error('no sessions available to test against'); process.exit(1); }
 console.log('testing against session:', target);
@@ -19,6 +29,7 @@ const ctx = new Proxy({}, { get: (t, p) => (typeof p === 'string' ? () => {} : u
 window.HTMLCanvasElement.prototype.getContext = () => ctx;
 window.requestAnimationFrame = (f) => setTimeout(f, 0);
 
+if (isStatic) window.CTX_STATIC = 1; // inline page script doesn't run under outside-only
 const errors = [];
 window.addEventListener('error', (e) => errors.push(e.message));
 try { window.eval(appjs); } catch (e) { errors.push('eval: ' + e.message); }

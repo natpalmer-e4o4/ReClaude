@@ -55,6 +55,10 @@ tasks:
     env: { DEMO_SEED: "1" }
     cmds: [docker compose up -d --build]
 
+  static:
+    desc: Build the static, installable PWA demo into docs/ (served by GitHub Pages)
+    cmds: [python3 scripts/build-static-demo.py]
+
   test:
     desc: Run the DOM regression test against the bundled demo seed (isolated instance, no docker needed)
     cmds:
