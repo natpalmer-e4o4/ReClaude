@@ -186,6 +186,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 .ctx-panel { min-width: 0; }
 .panel-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
 .panel-head .tabs { margin-bottom: 0; flex: 0 1 auto; }
+.tab-sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 4px; flex: none; }
 .panel-head .sq { flex: 1 1 180px; max-width: 340px; margin-left: auto; }
 .rail-search { padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .rail-search .sq { width: 100%; max-width: none; }

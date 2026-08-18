@@ -1895,34 +1895,47 @@ function renderLanes(s) {
 // ---------- tabs + panels ----------
 
 function renderTabs(s) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  const n = (x) => (x ? ` (${x})` : '');
   const tabs = [
     ['timeline', 'Timeline'],
     ['context', 'Context window'],
-    ['snapshot', `Snapshot${s.snapshots.length ? ` (${s.snapshots.length})` : ''}`],
-    ['files', `Files (${(s.manifest.files || []).length})`],
+    ['sep1', '|'],
+    ['sysprompt', `System prompt${n((snap?.systemPrompt || []).length)}`],
+    ['tools', `Tools${n((snap?.tools || []).length || st.deferredTools.size)}`],
+    ['skills', `Skills${n(st.skillListing?.skillCount)}`],
+    ['mcp', `MCP${n(st.mcpInstructions.length)}`],
+    ['sep2', '|'],
+    ['snapshot', `Snapshot${n(s.snapshots.length)}`],
+    ['files', `Files${n((s.manifest.files || []).length)}`],
   ];
   // build once, then update in place: select() calls renderTabs on every
   // selection, and rebuilding the nodes both restarts the pill transition and
   // re-binds four click listeners thousands of times a session
   const tabsEl = document.getElementById('tabs');
+  const realTabs = tabs.filter(([k]) => !k.startsWith('sep')); // separators aren't buttons
   let btns = [...tabsEl.querySelectorAll('button')];
-  if (btns.length !== tabs.length) {
-    tabsEl.innerHTML = tabs.map(([k]) => `<button data-tab="${k}"></button>`).join('');
+  if (btns.length !== realTabs.length) {
+    tabsEl.innerHTML = tabs.map(([k]) => (k.startsWith('sep')
+      ? '<span class="tab-sep" aria-hidden="true"></span>'
+      : `<button data-tab="${k}"></button>`)).join('');
     btns = [...tabsEl.querySelectorAll('button')];
     btns.forEach((b) => b.addEventListener('click', () => { s.tab = b.dataset.tab; renderTabs(s); renderPanel(s); }));
   }
   btns.forEach((b, i) => {
-    const [k, label] = tabs[i];
+    const [k, label] = realTabs[i];
     if (b.dataset.tab !== k) b.dataset.tab = k;
     if (b.textContent !== label) b.textContent = label; // labels carry live counts
     b.classList.toggle('on', s.tab === k);
   });
   // sort order and find-in-view only make sense on the event-list tabs
   const listy = s.tab === 'timeline' || s.tab === 'context';
+  const searchable = listy || ['sysprompt', 'tools', 'skills', 'mcp'].includes(s.tab);
   const sortBtn = document.getElementById('sortToggle');
   if (sortBtn) sortBtn.style.display = listy ? '' : 'none';
   const sqMain = document.getElementById('sqMain');
-  if (sqMain) sqMain.style.display = listy ? '' : 'none';
+  if (sqMain) sqMain.style.display = searchable ? '' : 'none';
   const phead = document.querySelector('.panel-head');
   if (phead) document.querySelector('.ctx-panel')?.style.setProperty('--pheadH', phead.offsetHeight + 'px');
 }
@@ -1988,6 +2001,10 @@ function renderPanel(s) {
   const panel = document.getElementById('panel');
   PV_ITEMS = [];
   if (s.tab === 'context') renderContextTab(s, panel);
+  else if (s.tab === 'sysprompt') renderSysPromptTab(s, panel);
+  else if (s.tab === 'tools') renderToolsTab(s, panel);
+  else if (s.tab === 'skills') renderSkillsTab(s, panel);
+  else if (s.tab === 'mcp') renderMcpTab(s, panel);
   else if (s.tab === 'snapshot') renderSnapshotTab(s, panel);
   else if (s.tab === 'files') renderFilesTab(s, panel);
   else renderTimelineTab(s, panel); // 'timeline' and any legacy tab id
@@ -2077,54 +2094,111 @@ function renderTimelineTab(s, panel) {
   if (focusEl) settleIntoView(focusEl, { block: 'center' });
 }
 
-function buildSystemLayers(s) {
-  const st = stateAt(s.model, s.sel);
-  const snap = s.snapshots[s.snapIdx]?.data;
+/* Ground-truth tabs. These four render the material that governs the whole
+   session — the prompt head — split by kind so each is browsable on its own.
+   All of them honour the in-view search. */
+function groundHead(s, title, badge, note) {
+  return `<div class="range-head"><div class="range-card">
+      <div class="rh-row">
+        <span class="eyebrow" style="color:var(--accent)">${esc(title)}</span>
+        <span class="rh-badge">${esc(badge)}${s.q ? ' · filtered' : ''}</span>
+      </div>
+      ${note ? `<p class="note" style="margin:8px 0 0">${note}</p>` : ''}
+    </div></div>`;
+}
+
+const noSnapshotWarning = `<div class="layer"><div class="body"><p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/context-export</code> run from within the live session can capture them.</p></div></div>`;
+
+function snapPicker(s) {
+  return s.snapshots.length > 1
+    ? `<select class="pill-select" id="snapSel">${s.snapshots.map((sn, i) =>
+        `<option value="${i}"${i === s.snapIdx ? ' selected' : ''}>${esc(sn.data.exportedAt || sn.name)}</option>`).join('')}</select>`
+    : '';
+}
+
+function wireSnapPicker(s) {
+  const el = document.getElementById('snapSel');
+  if (el) el.addEventListener('change', (e) => { s.snapIdx = +e.target.value; select(s, s.sel, { keepSnap: true }); });
+}
+
+function qmOf(s) {
   const q = (s.q || '').toLowerCase();
-  const qm = (...texts) => !q || texts.some((t) => String(t || '').toLowerCase().includes(q));
-  const sys = [];
-  if (snap) {
-    const sysSecs = (snap.systemPrompt || []).filter((sec) => qm(sec.title, sec.content));
-    const snapSel = s.snapshots.length > 1 ? `<select class="pill-select" id="snapSel">${s.snapshots.map((sn, i) =>
-      `<option value="${i}"${i === s.snapIdx ? ' selected' : ''}>${esc(sn.data.exportedAt || sn.name)}</option>`).join('')}</select>` : '';
-    sys.push(layer('System prompt — as transcribed', `${sysSecs.length} sections · exported ${esc(fmtTime(snap.exportedAt))} ${snapSel}`,
-      `<p class="note">Transcribed by the model from its own context at export time; the model is the sensor here and transcription can be lossy. Not stored anywhere on disk by Claude Code.</p>` +
-      sysSecs.map((sec) => pvRow(
+  return (...texts) => !q || texts.some((t) => String(t || '').toLowerCase().includes(q));
+}
+
+function renderSysPromptTab(s, panel) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const secs = (snap?.systemPrompt || []).filter((x) => qm(x.title, x.content));
+  const rules = (snap?.rules || []).filter((f) => qm(f.path, f.content));
+  const parts = [groundHead(s, 'system prompt · ground truth',
+    snap ? `${secs.length} sections · exported ${fmtTime(snap.exportedAt)} ${snapPicker(s)}` : 'no snapshot',
+    'Transcribed by the model from its own context at export time — the model is the sensor here, and transcription can be lossy. This text is never stored on disk by Claude Code.')];
+  parts.push(snap
+    ? layer('Sections, in prompt order', `${secs.length}`, secs.length ? secs.map((sec) => pvRow(
         { kind: 'text', badge: 'system prompt section', color: 'var(--k-attach)', title: sec.title, sub: sec.provenance === 'library' ? 'from shared cache' : 'as transcribed', content: sec.content },
-        { icon: '§', color: 'var(--k-attach)', label: sec.title, sub: sec.provenance === 'library' ? '⟲ cached' : '' })).join('')));
-    const toolList = (snap.tools || []).filter((t) => qm(t.name, t.description));
-    if (toolList.length) {
-      sys.push(layer('Tool definitions — as transcribed', `${toolList.length} tools`,
-        toolList.map((t) => pvRow(
-          { kind: 'tool', badge: 'tool definition', color: 'var(--k-tool)', tool: t, sub: t.provenance === 'library' ? 'from shared cache' : 'as transcribed' },
-          { icon: '⚒', color: 'var(--k-tool)', label: `${t.name} — ${(t.description || '').slice(0, 80)}`, sub: t.provenance === 'library' ? '⟲ cached' : '' })).join('')));
-    }
-    const ruleList = (snap.rules || []).filter((f) => qm(f.path, f.content));
-    if (ruleList.length) {
-      sys.push(layer('Rules & memory files', `${ruleList.length} files`,
-        ruleList.map((f) => pvRow(
-          { kind: 'text', badge: 'rules file', color: 'var(--k-user)', title: f.path, content: f.content },
-          { icon: '✎', color: 'var(--k-user)', label: f.path })).join('')));
-    }
-  } else {
-    sys.push(layer('System prompt', 'no snapshot', `<p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/context-export</code> run from within the live session can capture them.</p>`));
-  }
-  const tools = [...st.deferredTools].sort();
-  sys.push(layer('Deferred tools surfaced so far', `${tools.length} names · cumulative`,
-    tools.length ? `<div class="chiplist">${tools.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '<p class="hint">None yet at this point.</p>'));
-  if (st.skillListing) {
-    sys.push(layer('Skill listing in effect', `${st.skillListing.skillCount ?? '?'} skills${st.skillListing.isInitial ? ' · initial' : ''}`,
-      `<pre class="block">${esc(String(st.skillListing.content || (st.skillListing.names || []).join('\n')))}</pre>`));
-  }
-  if (st.mcpInstructions.length) {
-    sys.push(layer('MCP server instructions', `${st.mcpInstructions.length} delta(s)`,
-      st.mcpInstructions.map((a) => `<pre class="block">${esc(String(a.content || JSON.stringify(a, null, 2)))}</pre>`).join('')));
+        { icon: '§', color: 'var(--k-attach)', label: sec.title, sub: sec.provenance === 'library' ? '⟲ cached' : '' })).join('') : '<p class="hint">No sections match the search.</p>', true)
+    : noSnapshotWarning);
+  if (rules.length) {
+    parts.push(layer('Rules & memory files', `${rules.length} files`, rules.map((f) => pvRow(
+      { kind: 'text', badge: 'rules file', color: 'var(--k-user)', title: f.path, content: f.content },
+      { icon: '✎', color: 'var(--k-user)', label: f.path })).join(''), true));
   }
   if (st.outputStyle) {
-    sys.push(layer('Output style (latest)', 'superseding',
+    parts.push(layer('Output style in effect', 'latest supersedes',
       `<pre class="block">${esc(String(st.outputStyle.content || JSON.stringify(st.outputStyle, null, 2)))}</pre>`));
   }
-  return sys.join('');
+  panel.innerHTML = parts.join('');
+  wireSnapPicker(s);
+}
+
+function renderToolsTab(s, panel) {
+  const snap = s.snapshots[s.snapIdx]?.data;
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const tools = (snap?.tools || []).filter((t) => qm(t.name, t.description));
+  const deferred = [...st.deferredTools].sort().filter((t) => qm(t));
+  const parts = [groundHead(s, 'tools · ground truth',
+    `${tools.length} transcribed · ${deferred.length} deferred names`,
+    'Transcribed definitions are the full schemas the model could see. Deferred tools are names surfaced into context whose schemas only load when fetched with ToolSearch.')];
+  parts.push(snap
+    ? layer('Definitions — as transcribed', `${tools.length} tools ${snapPicker(s)}`, tools.length ? tools.map((t) => pvRow(
+        { kind: 'tool', badge: 'tool definition', color: 'var(--k-tool)', tool: t, sub: t.provenance === 'library' ? 'from shared cache' : 'as transcribed' },
+        { icon: '⚒', color: 'var(--k-tool)', label: `${t.name} — ${(t.description || '').slice(0, 80)}`, sub: t.provenance === 'library' ? '⟲ cached' : '' })).join('') : '<p class="hint">No tools match the search.</p>', true)
+    : noSnapshotWarning);
+  parts.push(layer('Deferred tools surfaced so far', `${deferred.length} names · cumulative at the playhead`,
+    deferred.length ? `<div class="chiplist">${deferred.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '<p class="hint">None at this point in the session.</p>', true));
+  panel.innerHTML = parts.join('');
+  wireSnapPicker(s);
+}
+
+function renderSkillsTab(s, panel) {
+  const st = stateAt(s.model, s.sel);
+  const listing = st.skillListing;
+  const body = listing ? String(listing.content || (listing.names || []).join('\n')) : '';
+  const q = (s.q || '').toLowerCase();
+  const shown = q ? body.split('\n').filter((l) => l.toLowerCase().includes(q)).join('\n') : body;
+  panel.innerHTML = groundHead(s, 'skills · ground truth',
+    listing ? `${listing.skillCount ?? '?'} skills${listing.isInitial ? ' · initial listing' : ''}` : 'none in context',
+    'The skill listing injected into context — what the model could invoke at this point in the session.') +
+    (listing
+      ? layer('Skill listing in effect', `${listing.skillCount ?? '?'} skills`,
+          `<pre class="block">${esc(shown || '(no lines match the search)')}</pre>`, true)
+      : `<div class="layer"><div class="body"><p class="hint">No skill listing had been injected into context by this point.</p></div></div>`);
+}
+
+function renderMcpTab(s, panel) {
+  const st = stateAt(s.model, s.sel);
+  const qm = qmOf(s);
+  const deltas = st.mcpInstructions.filter((a) => qm(a.content));
+  panel.innerHTML = groundHead(s, 'mcp · ground truth',
+    `${st.mcpInstructions.length} delta(s)`,
+    'Instructions supplied by connected MCP servers, injected into context as they connect. Tool schemas for MCP tools arrive separately and appear under Tools once fetched.') +
+    (deltas.length
+      ? deltas.map((a, i) => layer(`Server instructions · delta ${i + 1}`, '',
+          `<pre class="block">${esc(String(a.content || JSON.stringify(a, null, 2)))}</pre>`, deltas.length === 1)).join('')
+      : `<div class="layer"><div class="body"><p class="hint">${st.mcpInstructions.length ? 'No deltas match the search.' : 'No MCP server instructions in context at this point.'}</p></div></div>`);
 }
 
 /* The Context window tab: what the model sees at the playhead, laid out like a
@@ -2157,11 +2231,7 @@ function renderContextTab(s, panel) {
       </div>
     </div>
     <div class="ctx-group">
-      <div class="group-head eyebrow">prompt head — system prompt · tools · rules · injected state</div>
-      ${buildSystemLayers(s)}
-    </div>
-    <div class="ctx-group">
-      <div class="group-head eyebrow">message window — everything after the prompt head</div>
+      <div class="group-head eyebrow">message window — what follows the prompt head (System prompt · Tools · Skills · MCP tabs)</div>
       ${(s.sortDesc ? [...shown].reverse() : shown).map((r) => renderMsg(r, focusUuid, deltasOf(s.model), { orchestrator: !!s.agentFocus, durs: durationsOf(s.model) })).join('')}
     </div>`;
   const snapSelEl = document.getElementById('snapSel');
