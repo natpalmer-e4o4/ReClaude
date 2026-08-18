@@ -506,8 +506,11 @@ body.dragging { user-select: none; }
 
 /* the kind dot takes weight under the pointer — transform only, no layout */
 .rec:hover .dot { transform: scale(1.15); }
-/* the loudest fact in the rail answers the pointer in the same flat vocabulary */
-.rec.compact-row:hover { background: rgba(215,93,132,.16); box-shadow: inset 3px 0 0 var(--k-event); }
+/* the loudest fact in the rail answers the pointer in the rail's own grammar:
+   hover deepens the wash, the left tick stays reserved for state. An inset bar
+   here would start at the padding box — 3px inboard of every other row marker,
+   since .rec carries a 3px transparent border-left. */
+.rec.compact-row:hover { background: rgba(215,93,132,.16); }
 
 /* inputs: the existing focus border gains depth instead of a detached ring */
 .search-input:focus-visible,
