@@ -185,24 +185,29 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 
 /* ---------- context panel ---------- */
 .ctx-panel { min-width: 0; }
-.panel-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-/* the tab row owns its own line and justifies across it — with eight tabs the
-   spread reads as a menu bar rather than a left-packed clump */
-.panel-head .tabs { margin-bottom: 0; flex: 1 1 100%; justify-content: space-between; }
+/* full-width view switcher: nine tabs and their controls on one row — no wrap,
+   no horizontal scrolling, everything always visible */
+.panel-head { display: flex; gap: 12px; align-items: center; padding: 10px 0 8px; }
+.panel-head .tabs { margin-bottom: 0; flex: 0 1 auto; flex-wrap: nowrap; justify-content: flex-start; }
 .tab-sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 4px; flex: none; }
-.panel-head .sq { flex: 1 1 180px; max-width: 340px; margin-left: auto; }
+.panel-head .sq { flex: 0 1 280px; margin-left: auto; }
+@media (max-width: 1100px) { .panel-head, .panel-head .tabs { flex-wrap: wrap; } }
 .rail-search { padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .rail-search .sq { width: 100%; max-width: none; }
 .search-input.sq { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
 .tabs { display: flex; gap: 4px; margin-bottom: 10px; flex-wrap: wrap; }
 .tabs button {
   background: var(--panel); color: var(--muted); border: 1px solid var(--line);
-  border-radius: 6px; padding: 6px 14px; font: 600 12px var(--sans);
-  letter-spacing: .08em; text-transform: uppercase; cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(223,228,236,.045);
+  border-radius: 6px; padding: 5px 11px; font: 600 11.5px var(--sans);
+  letter-spacing: .04em; text-transform: uppercase; cursor: pointer;
+  white-space: nowrap; display: inline-flex; align-items: baseline; gap: 5px;
+  box-shadow: inset 0 1px 0 rgba(226,234,226,.045);
   transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .tabs button.on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+/* counts ride along without spending a tab's worth of width */
+.tabs .tab-n { font: 600 9.5px var(--mono); letter-spacing: 0; color: var(--faint); }
+.tabs button.on .tab-n { color: rgba(15, 26, 19, .6); }
 /* no overflow:hidden here — it would trap position:sticky summaries; corner
    clipping is handled with per-edge radii instead */
 .layer { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); margin-bottom: 12px; }
@@ -306,14 +311,11 @@ body.session-mode .ctx-panel .layer > summary { background: var(--panel); }
 body.session-mode .ctx-panel .group-head { background: var(--bg); padding-bottom: 5px; }
 body.session-mode .ctx-panel .snap-strip { background: var(--bg); padding: 2px 0 6px; }
 
-/* the head's shadow is evidence of depth, not decoration: flush at rest, it
-   fades up once content starts sliding under it (see .ctx-panel.stuck below) */
-body.session-mode .ctx-panel .panel-head {
-  position: sticky; top: 0; z-index: 5;
+/* the switcher spans the app above the panes, so it needs no sticky offset;
+   the depth cue moves to the panes themselves as content slides under them */
+body.session-mode .panel-head {
   background: var(--bg);
-  padding: 2px 0 10px;
-  border-bottom: 1px solid transparent;
-  transition: box-shadow .18s ease, border-color .18s ease;
+  border-bottom: 1px solid var(--line);
 }
 
 @media (max-width: 1100px) {

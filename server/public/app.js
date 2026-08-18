@@ -650,6 +650,11 @@ async function sessionView(id) {
         <span class="legend-right" id="legend"></span>
       </div>
     </div>
+    <div class="panel-head">
+      <div class="tabs" id="tabs"></div>
+      <button id="sortToggle" class="mini-btn" type="button" title="flip event order">▲ oldest first</button>
+      <input id="sqMain" class="search-input sq" type="search" autocomplete="off" spellcheck="false" placeholder="find in view — filters rows, keeps the zoom range">
+    </div>
     <div class="session-body">
       <div class="rail" id="railBox">
         <div class="rail-head">
@@ -664,11 +669,6 @@ async function sessionView(id) {
         <div class="rail-list" id="rail"></div>
       </div>
       <div class="ctx-panel">
-        <div class="panel-head">
-          <div class="tabs" id="tabs"></div>
-          <button id="sortToggle" class="mini-btn" type="button" title="flip event order">▲ oldest first</button>
-          <input id="sqMain" class="search-input sq" type="search" autocomplete="off" spellcheck="false" placeholder="find in view — filters rows, keeps the zoom range">
-        </div>
         <div id="panel"></div>
       </div>
       <div class="preview-pane" id="preview"></div>
@@ -1902,19 +1902,20 @@ function renderLanes(s) {
 function renderTabs(s) {
   const snap = s.snapshots[s.snapIdx]?.data;
   const st = stateAt(s.model, s.sel);
-  const n = (x) => (x ? ` (${x})` : '');
+  // short labels + counts as light superscripts: nine tabs have to fit one row
+  // without wrapping or horizontal scrolling
   const tabs = [
-    ['timeline', 'Timeline'],
-    ['context', 'Context window'],
-    ['sep1', '|'],
-    ['sysprompt', `System prompt${n((snap?.systemPrompt || []).length)}`],
-    ['tools', `Tools${n((snap?.tools || []).length || st.deferredTools.size)}`],
-    ['skills', `Skills${n(st.skillListing?.skillCount)}`],
-    ['mcp', `MCP${n(st.mcpInstructions.length)}`],
-    ['memory', `Memory${n((s.memory?.files || []).filter((f) => f.name !== 'MEMORY.md').length)}`],
-    ['sep2', '|'],
-    ['snapshot', `Snapshot${n(s.snapshots.length)}`],
-    ['files', `Files${n((s.manifest.files || []).length)}`],
+    ['timeline', 'Timeline', 0],
+    ['context', 'Context', 0],
+    ['sep1', '', 0],
+    ['sysprompt', 'Prompt', (snap?.systemPrompt || []).length],
+    ['tools', 'Tools', (snap?.tools || []).length || st.deferredTools.size],
+    ['skills', 'Skills', st.skillListing?.skillCount || 0],
+    ['mcp', 'MCP', st.mcpInstructions.length],
+    ['memory', 'Memory', (s.memory?.files || []).filter((f) => f.name !== 'MEMORY.md').length],
+    ['sep2', '', 0],
+    ['snapshot', 'Snapshot', s.snapshots.length],
+    ['files', 'Files', (s.manifest.files || []).length],
   ];
   // build once, then update in place: select() calls renderTabs on every
   // selection, and rebuilding the nodes both restarts the pill transition and
@@ -1930,9 +1931,13 @@ function renderTabs(s) {
     btns.forEach((b) => b.addEventListener('click', () => { s.tab = b.dataset.tab; renderTabs(s); renderPanel(s); }));
   }
   btns.forEach((b, i) => {
-    const [k, label] = realTabs[i];
+    const [k, label, count] = realTabs[i];
     if (b.dataset.tab !== k) b.dataset.tab = k;
-    if (b.textContent !== label) b.textContent = label; // labels carry live counts
+    const sig = `${label}|${count}`;
+    if (b.dataset.sig !== sig) { // counts are live; only touch the DOM when they move
+      b.dataset.sig = sig;
+      b.innerHTML = `${esc(label)}${count ? `<span class="tab-n">${count}</span>` : ''}`;
+    }
     b.classList.toggle('on', s.tab === k);
   });
   // sort order and find-in-view only make sense on the event-list tabs
@@ -1942,8 +1947,9 @@ function renderTabs(s) {
   if (sortBtn) sortBtn.style.display = listy ? '' : 'none';
   const sqMain = document.getElementById('sqMain');
   if (sqMain) sqMain.style.display = searchable ? '' : 'none';
-  const phead = document.querySelector('.panel-head');
-  if (phead) document.querySelector('.ctx-panel')?.style.setProperty('--pheadH', phead.offsetHeight + 'px');
+  // the switcher lives outside the scrolling panes now, so sticky section
+  // headers pin at the top of their own pane
+  document.querySelector('.ctx-panel')?.style.setProperty('--pheadH', '0px');
 }
 
 function roleOf(r, kind, opts = {}) {
