@@ -9,6 +9,49 @@
      skill_listing / output_style / agent_listing supersede, mcp_instructions accumulates */
 'use strict';
 
+/* Canvas palette is read from the stylesheet, so switching themes repaints the
+   tape, minimap and lanes without any colour literals in the drawing code. */
+const CANVAS = {};
+function readThemeColors() {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name, fallback) => (cs.getPropertyValue(name).trim() || fallback);
+  KIND_COLORS.user = v('--k-user', '#4a8fdd');
+  KIND_COLORS.attach = v('--k-attach', '#27a578');
+  KIND_COLORS.assistant = v('--k-assistant', '#c08618');
+  KIND_COLORS.tool = v('--k-tool', '#8a5fe8');
+  KIND_COLORS.srvtool = KIND_COLORS.tool;
+  KIND_COLORS.event = v('--k-event', '#d75d84');
+  CANVAS.accent = v('--accent', '#e9b949');
+  ACCENT = CANVAS.accent;
+  CANVAS.curve = v('--c-curve', '#c08618');
+  CANVAS.curveFill = v('--c-curve-fill', 'rgba(192,134,24,0.26)');
+  CANVAS.hair = v('--c-hair', 'rgba(226,234,226,0.35)');
+  CANVAS.band = v('--c-band', 'rgba(226,234,226,0.08)');
+  CANVAS.viewport = v('--c-viewport', 'rgba(226,234,226,0.12)');
+  CANVAS.grid = v('--c-grid', 'rgba(226,234,226,0.10)');
+  CANVAS.gapText = v('--c-gaptext', 'rgba(226,234,226,0.75)');
+  CANVAS.gapLine = v('--c-gapline', 'rgba(144,169,152,0.45)');
+  CANVAS.gapFill = v('--c-gapfill', 'rgba(95,122,104,0.16)');
+}
+
+function applyTheme(name) {
+  document.documentElement.dataset.theme = name;
+  try { localStorage.setItem('ctx-theme', name); } catch {}
+  readThemeColors();
+  const s = state.session;
+  if (s) { drawTape(s); renderRailMap(s); renderLanes(s); }
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem('ctx-theme'); } catch {}
+  const sel = document.getElementById('themeSel');
+  const name = saved && sel && [...sel.options].some((o) => o.value === saved) ? saved : 'forest';
+  document.documentElement.dataset.theme = name;
+  if (sel) { sel.value = name; sel.addEventListener('change', () => applyTheme(sel.value)); }
+  readThemeColors();
+}
+
 const KIND_COLORS = {
   user: '#4a8fdd',
   assistant: '#c08618',
@@ -34,7 +77,7 @@ const LEGEND = [
   { k: 'event', f: 'compact', name: 'compaction splice', swatch: 'line',
     desc: 'Where the context window was compacted: everything left of the dashed line was dropped from the live window and replaced by a harness-written summary message (labeled "compact summary" — it is not a human turn). This filter matches both the boundary and its summary.' },
 ];
-const ACCENT = '#e9b949'; // brass on green velvet
+let ACCENT = '#e9b949'; // replaced from the stylesheet by readThemeColors()
 
 const $view = document.getElementById('view');
 const state = { sessions: null, session: null };
@@ -466,6 +509,7 @@ function tokensAt(model, idx) {
 // ---------- router ----------
 
 window.addEventListener('hashchange', route);
+initTheme();
 route();
 
 async function route() {
@@ -652,8 +696,7 @@ async function sessionView(id) {
     </div>
     <div class="panel-head">
       <div class="tabs" id="tabs"></div>
-      <button id="sortToggle" class="mini-btn" type="button" title="flip event order">▲ oldest first</button>
-      <input id="sqMain" class="search-input sq" type="search" autocomplete="off" spellcheck="false" placeholder="find in view — filters rows, keeps the zoom range">
+      <button id="sortToggle" class="mini-btn sortish" type="button" title="flip event order">▲ oldest first</button>
     </div>
     <div class="session-body">
       <div class="rail" id="railBox">
@@ -669,6 +712,9 @@ async function sessionView(id) {
         <div class="rail-list" id="rail"></div>
       </div>
       <div class="ctx-panel">
+        <div class="panel-search">
+          <input id="sqMain" class="search-input sq" type="search" autocomplete="off" spellcheck="false" placeholder="find in view — filters rows, keeps the zoom range">
+        </div>
         <div id="panel"></div>
       </div>
       <div class="preview-pane" id="preview"></div>
@@ -683,7 +729,7 @@ async function sessionView(id) {
       ? `<span style="display:inline-block;width:8px;height:8px;border-radius:2px;border:2px solid ${KIND_COLORS[it.k]};margin-right:5px"></span>`
       : `<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${KIND_COLORS[it.k]};margin-right:5px"></span>`;
     return `<span class="readout legend-item" data-li="${i}" tabindex="0">${sw}${esc(it.name)}</span>`;
-  }).join('') + `<button id="filterClear" class="mini-btn" style="display:none" type="button">clear filters</button>`;
+  }).join('') + `<button id="filterClear" class="mini-btn" type="button" disabled>clear filters</button>`;
   const legendTip = document.getElementById('tapeTip');
   const showLegendTip = (it, x, y) => {
     const d = LEGEND[+it.dataset.li];
@@ -1015,7 +1061,7 @@ function renderRailMap(s) {
   const uFracOf = (i) => (x(i) - 2) / Math.max(1, W - 4);
   const stripH = 10; // bottom strip: event-kind distribution
   if (mscale) {
-    g.fillStyle = 'rgba(95,122,104,0.18)';
+    g.fillStyle = CANVAS.gapFill;
     for (const sg of mscale.segs) if (sg.gap) g.fillRect(sg.x0, 0, Math.max(1.5, sg.x1 - sg.x0), H);
   }
   const y = (t) => H - stripH - 2 - (t / s._maxTok) * (H - stripH - 6);
@@ -1023,7 +1069,7 @@ function renderRailMap(s) {
   g.beginPath();
   g.moveTo(x(0), y(s._pts[0]));
   for (let i = 1; i < n; i++) g.lineTo(x(i), y(s._pts[i]));
-  g.strokeStyle = 'rgba(192,134,24,0.8)'; g.lineWidth = 1; g.stroke();
+  g.strokeStyle = CANVAS.curve; g.lineWidth = 1; g.stroke();
   // kind distribution: bucket records into ~2px columns, stack each column's
   // kind mix proportionally — a best-effort density read at this scale
   const colW = 2;
@@ -1067,7 +1113,7 @@ function renderRailMap(s) {
     const i1 = +rows[k1].dataset.i, i2 = +rows[k2].dataset.i;
     const bx0 = x(i1), bw = Math.max(3, x(i2) - x(i1));
     // idle: a hint. held: a grabbed object — brighter, with accent edges.
-    g.fillStyle = s._scrubbing ? 'rgba(223,228,236,0.22)' : 'rgba(226,234,226,0.12)';
+    g.fillStyle = s._scrubbing ? CANVAS.hair : CANVAS.viewport;
     g.fillRect(bx0, 0, bw, H);
     if (s._scrubbing) {
       g.fillStyle = ACCENT;
@@ -1111,8 +1157,10 @@ function applyFilter(s) {
   document.querySelectorAll('#legend .legend-item').forEach((el) => {
     el.classList.toggle('on', s.filter.has(LEGEND[+el.dataset.li].f));
   });
+  // always present, disabled when there is nothing to clear — hiding it would
+  // reflow the legend row the moment you click your first filter
   const btn = document.getElementById('filterClear');
-  if (btn) btn.style.display = s.filter.size ? '' : 'none';
+  if (btn) btn.disabled = !s.filter.size;
   drawTape(s);
   renderRail(s);
   renderPanel(s);
@@ -1509,18 +1557,18 @@ function drawTape(s) {
       s._gapBands.push({ px0, px1, dur: sg.dur, t0: sg.t0, t1: sg.t1 });
       g.save();
       g.beginPath(); g.rect(px0, 2, px1 - px0, bandTop - 4); g.clip();
-      g.fillStyle = 'rgba(95,122,104,0.10)';
+      g.fillStyle = CANVAS.gapFill;
       g.fillRect(px0, 2, px1 - px0, bandTop - 4);
-      g.strokeStyle = 'rgba(144,169,152,0.35)'; g.lineWidth = 1;
+      g.strokeStyle = CANVAS.gapLine; g.lineWidth = 1;
       for (let hx = px0 - bandTop; hx < px1; hx += 7) {
         g.beginPath(); g.moveTo(hx, bandTop); g.lineTo(hx + bandTop, 0); g.stroke();
       }
       g.restore();
-      g.strokeStyle = 'rgba(144,169,152,0.5)';
+      g.strokeStyle = CANVAS.gapLine;
       g.beginPath(); g.moveTo(px0 + 0.5, 2); g.lineTo(px0 + 0.5, bandTop - 2);
       g.moveTo(px1 - 0.5, 2); g.lineTo(px1 - 0.5, bandTop - 2); g.stroke();
       if (px1 - px0 >= 44) {
-        g.fillStyle = 'rgba(226,234,226,0.75)';
+        g.fillStyle = CANVAS.gapText;
         g.font = '9.5px ui-monospace, Menlo, monospace';
         g.textAlign = 'center';
         g.fillText(`⋯ ${fmtDur(sg.dur)}`, (px0 + px1) / 2, 20);
@@ -1548,13 +1596,13 @@ function drawTape(s) {
       const MIN_GAP = 32;
       let lastX = -Infinity;
       s._grid = s._grid.filter((gl) => (gl.px - lastX >= MIN_GAP ? ((lastX = gl.px), true) : false));
-      g.strokeStyle = 'rgba(226,234,226,0.10)';
+      g.strokeStyle = CANVAS.grid;
       g.lineWidth = 1;
       for (const gl of s._grid) {
         g.beginPath(); g.moveTo(gl.px + 0.5, 2); g.lineTo(gl.px + 0.5, bandTop - 2); g.stroke();
       }
       let lastLabelX = -1e9;
-      g.fillStyle = 'rgba(144,169,152,0.75)';
+      g.fillStyle = CANVAS.gapText;
       g.font = '9.5px ui-monospace, Menlo, monospace';
       for (const gl of s._grid) {
         if (gl.px - lastLabelX < 64) continue;
@@ -1569,12 +1617,12 @@ function drawTape(s) {
   g.moveTo(x(i0), y(pts[i0]));
   for (let i = i0 + 1; i <= i1; i++) g.lineTo(x(i), y(pts[i]));
   g.lineTo(x(i1), chartH + 4); g.lineTo(x(i0), chartH + 4); g.closePath();
-  g.fillStyle = 'rgba(192,134,24,0.26)';
+  g.fillStyle = CANVAS.curveFill;
   g.fill();
   g.beginPath();
   g.moveTo(x(i0), y(pts[i0]));
   for (let i = i0 + 1; i <= i1; i++) g.lineTo(x(i), y(pts[i]));
-  g.strokeStyle = '#c08618'; g.lineWidth = 2; g.stroke();
+  g.strokeStyle = CANVAS.curve; g.lineWidth = 2; g.stroke();
 
   // tick strip by kind — ticks widen as the zoom deepens
   const tickW = Math.max(1.5, Math.min(10, ((W - 8) / (i1 - i0 + 1)) * 0.66));
@@ -1611,7 +1659,7 @@ function drawTape(s) {
   const fx = bandScale
     ? (i) => bandScale.xOfT(timeAtIdx(bandTimes, i))
     : (i) => (i / Math.max(1, n - 1)) * (W - 2 * TAPE.pad) + TAPE.pad;
-  g.fillStyle = 'rgba(226,234,226,0.08)';
+  g.fillStyle = CANVAS.band;
   g.fillRect(TAPE.pad, bandTop, W - 2 * TAPE.pad, TAPE.bandH);
   g.fillStyle = 'rgba(233,185,73,0.35)';
   g.fillRect(fx(v.a), bandTop, Math.max(2, fx(v.b) - fx(v.a)), TAPE.bandH);
@@ -1670,7 +1718,7 @@ function drawTape(s) {
 
   // hover crosshair
   if (s.hover != null && s.hover >= i0 && s.hover <= i1) {
-    g.strokeStyle = 'rgba(226,234,226,0.35)'; g.lineWidth = 1;
+    g.strokeStyle = CANVAS.hair; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x(s.hover), 0); g.lineTo(x(s.hover), bandTop - 2); g.stroke();
   }
   // selection cursor
@@ -1945,11 +1993,16 @@ function renderTabs(s) {
   const searchable = listy || ['sysprompt', 'tools', 'skills', 'mcp', 'memory'].includes(s.tab);
   const sortBtn = document.getElementById('sortToggle');
   if (sortBtn) sortBtn.style.display = listy ? '' : 'none';
-  const sqMain = document.getElementById('sqMain');
-  if (sqMain) sqMain.style.display = searchable ? '' : 'none';
-  // the switcher lives outside the scrolling panes now, so sticky section
-  // headers pin at the top of their own pane
-  document.querySelector('.ctx-panel')?.style.setProperty('--pheadH', '0px');
+  const sqWrap = document.querySelector('.panel-search');
+  if (sqWrap) sqWrap.style.display = searchable ? '' : 'none';
+  // section heads pin below the finder band when it is showing, so the two
+  // never overlap (the finder would otherwise clip the head card's corners)
+  const panelEl = document.querySelector('.ctx-panel');
+  if (panelEl) {
+    const band = panelEl.querySelector('.panel-search');
+    const h = band && band.style.display !== 'none' ? band.offsetHeight : 0;
+    panelEl.style.setProperty('--pheadH', h + 'px');
+  }
 }
 
 function roleOf(r, kind, opts = {}) {
@@ -2022,6 +2075,8 @@ function renderPanel(s) {
   else if (s.tab === 'files') renderFilesTab(s, panel);
   else renderTimelineTab(s, panel); // 'timeline' and any legacy tab id
   initJsonBlocks(panel);
+  const head = panel.querySelector('.range-head');
+  panel.parentElement?.style.setProperty('--rheadH', (head ? head.offsetHeight : 0) + 'px');
 }
 
 /* Range view: what happened inside the zoomed window — the span complement to

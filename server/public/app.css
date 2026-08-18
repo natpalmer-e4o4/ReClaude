@@ -3,22 +3,61 @@
    Categorical palette re-validated (dataviz six checks) against surface #0f1a13:
    user #4a8fdd · attachment #27a578 · assistant #c08618 · tool/sidechain #8a5fe8 · event/compact #d75d84 */
 
+/* ---------- themes ----------
+   Six presets; :root carries Forest as the default. Categorical palettes are
+   validated per mode with the dataviz six checks (dark surface #0f1a13, light
+   surface #f4f2ec) — light mode gets its own darker set, not the dark one
+   reused. Canvas colours are variables too, so the tape follows the theme. */
 :root {
-  --bg: #0f1a13;            /* forest floor */
-  --panel: #16241b;         /* velvet nap */
-  --panel-2: #1d2f23;       /* velvet, brushed the other way */
-  --line: #294032;
-  --ink: #e2eae2;
-  --muted: #90a998;
-  --faint: #5f7a68;
-  --accent: #e9b949;        /* brass on green velvet */
-  --k-user: #4a8fdd;
-  --k-attach: #27a578;
-  --k-assistant: #c08618;
-  --k-tool: #8a5fe8;
-  --k-event: #d75d84;
+  --bg: #0f1a13; --panel: #16241b; --panel-2: #1d2f23; --line: #294032;
+  --ink: #e2eae2; --muted: #90a998; --faint: #5f7a68; --accent: #e9b949;
+  --k-user: #4a8fdd; --k-attach: #27a578; --k-assistant: #c08618;
+  --k-tool: #8a5fe8; --k-event: #d75d84;
+  --c-curve: #c08618; --c-curve-fill: rgba(192,134,24,0.26);
+  --c-hair: rgba(226,234,226,0.35); --c-band: rgba(226,234,226,0.08);
+  --c-viewport: rgba(226,234,226,0.12); --c-grid: rgba(226,234,226,0.10);
+  --c-gaptext: rgba(226,234,226,0.75); --c-gapline: rgba(144,169,152,0.45);
+  --c-gapfill: rgba(95,122,104,0.16); --c-shadow: rgba(0,14,7,0.55);
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --sans: "Avenir Next", "Futura", "Helvetica Neue", system-ui, sans-serif;
+}
+[data-theme="instrument"] {
+  --bg: #14181f; --panel: #1b2029; --panel-2: #222834; --line: #2e3542;
+  --ink: #dfe4ec; --muted: #8b94a7; --faint: #5d6577; --accent: #f0b429;
+  --c-hair: rgba(223,228,236,0.35); --c-band: rgba(223,228,236,0.08);
+  --c-viewport: rgba(223,228,236,0.12); --c-grid: rgba(223,228,236,0.10);
+  --c-gaptext: rgba(223,228,236,0.75); --c-gapline: rgba(139,148,167,0.45);
+  --c-gapfill: rgba(93,101,119,0.16); --c-shadow: rgba(0,0,0,0.55);
+}
+[data-theme="ember"] {
+  --bg: #191512; --panel: #221d19; --panel-2: #2b2521; --line: #3a322c;
+  --ink: #ece4dc; --muted: #a3958a; --faint: #6f6357; --accent: #e0904f;
+  --c-hair: rgba(236,228,220,0.35); --c-band: rgba(236,228,220,0.08);
+  --c-viewport: rgba(236,228,220,0.12); --c-grid: rgba(236,228,220,0.10);
+  --c-gaptext: rgba(236,228,220,0.75); --c-gapline: rgba(163,149,138,0.45);
+  --c-gapfill: rgba(111,99,87,0.16); --c-shadow: rgba(14,8,4,0.55);
+}
+/* light modes: darker categorical set, validated against #f4f2ec */
+[data-theme="paper"], [data-theme="linen"], [data-theme="sage"] {
+  --k-user: #3574c4; --k-attach: #1a7d5e; --k-assistant: #946412;
+  --k-tool: #7145d6; --k-event: #bd3055;
+  --c-curve: #946412; --c-curve-fill: rgba(148,100,18,0.16);
+  --c-hair: rgba(30,30,30,0.35); --c-band: rgba(30,30,30,0.07);
+  --c-viewport: rgba(30,30,30,0.10); --c-grid: rgba(30,30,30,0.10);
+  --c-gaptext: rgba(40,38,34,0.8); --c-gapline: rgba(90,86,78,0.45);
+  --c-gapfill: rgba(120,116,106,0.14); --c-shadow: rgba(60,55,45,0.22);
+}
+[data-theme="paper"] {
+  --bg: #f4f2ec; --panel: #fbfaf6; --panel-2: #eceadf; --line: #d9d5ca;
+  --ink: #2a2723; --muted: #6b665c; --faint: #938d80; --accent: #b07a12;
+}
+[data-theme="linen"] {
+  --bg: #eef1f4; --panel: #f9fbfc; --panel-2: #e3e8ee; --line: #ccd4dc;
+  --ink: #1f2933; --muted: #5c6b7a; --faint: #8b98a5; --accent: #a35a09;
+}
+[data-theme="sage"] {
+  --bg: #eef2ec; --panel: #f8faf6; --panel-2: #e2e9de; --line: #cbd6c5;
+  --ink: #1f2a20; --muted: #5d6b5b; --faint: #8b9a88; --accent: #8a6d1f;
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -106,7 +145,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   position: fixed; pointer-events: none; z-index: 50; display: none;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
   padding: 6px 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink);
-  max-width: 340px; box-shadow: 0 4px 18px rgba(0, 12, 6, .55);
+  max-width: 340px; box-shadow: 0 4px 18px var(--c-shadow);
 }
 .tape-tip .k { color: var(--muted); }
 .zoom-ctl { display: inline-flex; gap: 8px; align-items: center; }
@@ -131,6 +170,8 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .mini-btn:hover { color: var(--accent); border-color: var(--accent); }
+.mini-btn:disabled { color: var(--faint); border-color: var(--line); opacity: .55; cursor: default; }
+.mini-btn:disabled:hover { color: var(--faint); border-color: var(--line); }
 
 /* ---------- snapshot selector strip ---------- */
 .snap-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
@@ -190,7 +231,14 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 .panel-head { display: flex; gap: 12px; align-items: center; padding: 10px 0 8px; }
 .panel-head .tabs { margin-bottom: 0; flex: 0 1 auto; flex-wrap: nowrap; justify-content: flex-start; }
 .tab-sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 4px; flex: none; }
-.panel-head .sq { flex: 0 1 280px; margin-left: auto; }
+.panel-head .sortish { margin-left: auto; }
+/* the finder heads the pane it filters, spanning its full width */
+.panel-search { padding: 0 0 8px; }
+.panel-search .sq { width: 100%; max-width: none; }
+body.session-mode .ctx-panel .panel-search {
+  position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 2px 0 8px;
+}
+body.session-mode .ctx-panel.stuck .panel-search { box-shadow: 0 6px 8px -6px var(--c-shadow); }
 @media (max-width: 1100px) { .panel-head, .panel-head .tabs { flex-wrap: wrap; } }
 .rail-search { padding: 6px 10px; border-bottom: 1px solid var(--line); }
 .rail-search .sq { width: 100%; max-width: none; }
@@ -295,17 +343,27 @@ body.session-mode .rail-list { flex: 1; max-height: none; }
 body.session-mode .ctx-panel { overflow-y: auto; min-height: 0; overscroll-behavior: contain; padding-right: 2px; }
 /* the whole range header card pins at panel level while events scroll beneath */
 .range-head { margin-bottom: 4px; }
-body.session-mode .ctx-panel .range-head { position: sticky; top: var(--pheadH, 46px); z-index: 4; background: var(--bg); padding-bottom: 8px; }
+body.session-mode .ctx-panel .range-head {
+  position: sticky; top: var(--pheadH, 46px); z-index: 4; background: var(--bg);
+  padding-bottom: 8px;
+}
+/* depth only once rows are actually passing under it */
+body.session-mode .ctx-panel.stuck .range-head::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 8px;
+  pointer-events: none;
+  background: linear-gradient(var(--c-shadow), transparent);
+}
 .range-card { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 10px 14px; }
 .rh-row { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
 .rh-badge { font-family: var(--mono); font-size: 11px; color: var(--faint); }
 .ctx-panel .layer.no-stick > summary { position: static !important; }
 
 /* section headers stick just below the tab row while their content scrolls */
+/* second-level heads pin *below* the summary card, never over it */
 body.session-mode .ctx-panel .group-head,
 body.session-mode .ctx-panel .layer > summary,
 body.session-mode .ctx-panel .snap-strip {
-  position: sticky; top: var(--pheadH, 46px); z-index: 4;
+  position: sticky; top: calc(var(--pheadH, 0px) + var(--rheadH, 0px)); z-index: 3;
 }
 body.session-mode .ctx-panel .layer > summary { background: var(--panel); }
 body.session-mode .ctx-panel .group-head { background: var(--bg); padding-bottom: 5px; }
@@ -374,7 +432,7 @@ body.session-mode .panel-head {
 .lane-pop {
   position: fixed; z-index: 60; min-width: 280px; max-width: 400px; max-height: 320px; overflow-y: auto;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
-  box-shadow: 0 10px 28px rgba(0, 12, 6, 0.6); overscroll-behavior: contain;
+  box-shadow: 0 10px 28px var(--c-shadow); overscroll-behavior: contain;
 }
 .lane-pop-item { display: flex; gap: 8px; align-items: center; padding: 4px 7px; border-radius: 5px; cursor: pointer; font: 11.5px var(--mono); color: var(--ink); }
 .lane-pop-item:hover { background: var(--panel); }
@@ -539,10 +597,10 @@ body.dragging { user-select: none; }
 
 /* sticky heads: shadow only once content is actually sliding underneath */
 body.session-mode .ctx-panel.stuck .panel-head {
-  box-shadow: 0 6px 8px -6px rgba(0, 14, 7, 0.7);
+  box-shadow: 0 6px 8px -6px var(--c-shadow);
   border-bottom-color: var(--line);
 }
-.rail.scrolled .rail-head { box-shadow: 0 6px 8px -6px rgba(0, 14, 7, 0.7); }
+.rail.scrolled .rail-head { box-shadow: 0 6px 8px -6px var(--c-shadow); }
 
 /* second-level heads inherit the pane's signal; borders are reserved
    transparent up front so colouring them in never reflows the list */
@@ -571,3 +629,15 @@ body.session-mode .ctx-panel.stuck .layer[open] > .body { border-top-color: tran
 .msg.focus:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px rgba(233,185,73,.20); }
 .msg.focus.pair-hl:active { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool); }
 .msg.focus.pair-hl:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool), inset 0 0 0 1px rgba(233,185,73,.20); }
+
+/* ---------- theme switcher ---------- */
+.theme-pick {
+  position: absolute; top: clamp(12px, 2.4vw, 24px); right: calc(clamp(14px, 3vw, 30px) + 42px);
+  z-index: 21; display: flex; align-items: center; gap: 6px;
+}
+.theme-pick select {
+  background: var(--panel); color: var(--muted); border: 1px solid var(--line);
+  border-radius: 6px; font: 600 10.5px var(--mono); padding: 3px 7px; cursor: pointer;
+  letter-spacing: .04em;
+}
+.theme-pick select:hover { color: var(--accent); border-color: var(--accent); }

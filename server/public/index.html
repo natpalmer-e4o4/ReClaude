@@ -12,6 +12,20 @@
 <div id="app" class="app">
   <img class="makers-mark" alt=""
     src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsIAAA7CARUoSoAAAAPdSURBVHhe7ZmxbttAEESVfEHKAAH8E6xUqw3SulZDNa7dCmpdu5Ea1W6NtKpd8ScMuM8fJLy9mZO1ynrvZBlx4H3AYUTySBqcub0j/Wnyzui67jd+HjAMw5v8rZ+hH5Z3kwA6v17L5hGLRdZzJ+HDJ+C/eQDrPreUFKtOnELUAOg/wxv7kyHLYpM1pSDB7dfWhKgB0A9LPADo+yONfYz/54xjXtq5iFkAWk3tHOxV51L9UdUHVPUuS4Fed6r6n2s2iARAj7Cc7ruXxx+H5wAvLWd4fRh55LyGd4XhkYBz4SbAcnwz/N0z9veSoBNArBpAmADeZ7yO6KlJiHUAtJrkbGqdeLtvryVVean0qpX9b0TUAKgJx6p2mWOb6Fph1QBer7z9oR/HsAWrPm/LL0S8L2tS1IBGqp8WnSPaUa/6n+q8xkpCq/MkEgBtxnJewyQU54B2nsmgo8TcbySB1CYiEgBthgnwZgeiZwm9kmxNgL7e+PfgRxb295IQCYBW41V9OjZsDh0iuv+pMHk0XtP1+YCXhEgAtBo99q353podivNc4PNTUC3qPF2DmIjalWEkAFoNHd5ut7I9n89FiU4COUoMdOwnWtCJUK+C4/VFSw1Q1yWe8yQSAHWhoyjyBU7Pu91OdDabiWoHeL7pPOhVAjbGxwCdhFrHNZEAqItOQH7uz77RQadGbbDGco/5ut/kK5UFH/ozEUOftzdYX1i1ozUJkQCoS2sCbh8eRElZD9Ap1AImgMfX5XiGNaDM70YCuDkgSbVJiARAXbwErFYr0YuLC1EmQDtPOoxp7bxVA7wk6AQQLwmRAGg1TALRKzEmYXn/JKqrM89nAshRUtSsoYa8WwuuplNRzkZWEiIB0GboJN/6+PZVErBcinrO08mfqx+iX3HeArPD6lve/315L8pZg+jzWYOoxFqhfvgEnP0BJOdTS0/aGneJ5Fxq67F6pKbpx2OpEfbjeR6Pj4/SPKIGQJuxaoB2nf1Y1cfjor92N6LXd3eiA1LAMU+WT3nsd5hlbi4vRb/MrkU5C+i3SFYKriusNEYCoM20JkCv/TlP6xXj7iY7TGbXOSF6fud5rAdcj2heqkOJSAC0mdoEkFILkIDt9Ep0/nArWrZvD98it1dY0el+2B5vLOI5bREJgDbTmgBSkkDUio8rSFJWlpgN6Dg51XkSCYA24yXgyGlgfU9gErTDej/fJLB3//1AUZuMSAC0GSsBRP//gGjn6Si3tXPlPrJ1fN7hXfd4K0ASCYCeDB3SY1+Pdc3hyn2PlQANE6DRtSES4PDqBFhYzhHPGQ/v+iQS8CKTyR96SDSWX48V0wAAAABJRU5ErkJggg==">
+  <div class="theme-pick">
+    <select id="themeSel" aria-label="Colour theme" title="Colour theme">
+      <optgroup label="dark">
+        <option value="forest">forest</option>
+        <option value="instrument">instrument</option>
+        <option value="ember">ember</option>
+      </optgroup>
+      <optgroup label="light">
+        <option value="paper">paper</option>
+        <option value="linen">linen</option>
+        <option value="sage">sage</option>
+      </optgroup>
+    </select>
+  </div>
   <div id="view"></div>
 </div>
 <script src="/vendor/codemirror/codemirror.js"></script>
