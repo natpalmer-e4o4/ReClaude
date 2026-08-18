@@ -749,7 +749,18 @@ async function sessionView(id) {
     rail.scrollTop = hit.offsetTop - rail.clientHeight / 2 + hit.offsetHeight / 2;
   };
   let scrubbing = false;
-  railMapEl.addEventListener('mousedown', (e) => { scrubbing = true; scrubTo(e.clientX); e.preventDefault(); });
+  // held state is painted once on each edge; every frame in between repaints for
+  // free, because scrubTo writes rail.scrollTop and the rail's scroll listener
+  // already schedules a renderRailMap
+  railMapEl.addEventListener('mousedown', (e) => {
+    scrubbing = true;
+    s._scrubbing = true;
+    railMapEl.classList.add('scrubbing');
+    document.body.classList.add('dragging');
+    renderRailMap(s);
+    scrubTo(e.clientX);
+    e.preventDefault();
+  });
   const mapMove = (e) => {
     if (document.getElementById('railMap') !== railMapEl) {
       window.removeEventListener('mousemove', mapMove);
@@ -758,7 +769,14 @@ async function sessionView(id) {
     }
     if (scrubbing) scrubTo(e.clientX);
   };
-  const mapUp = () => { scrubbing = false; };
+  const mapUp = () => {
+    if (!scrubbing) return; // this fires on every mouseup in the view; only the release edge costs a repaint
+    scrubbing = false;
+    s._scrubbing = false;
+    railMapEl.classList.remove('scrubbing');
+    document.body.classList.remove('dragging');
+    renderRailMap(s);
+  };
   window.addEventListener('mousemove', mapMove);
   window.addEventListener('mouseup', mapUp);
   document.getElementById('sidechainToggle').addEventListener('change', (e) => {
@@ -862,10 +880,13 @@ async function sessionView(id) {
 }
 
 function select(s, idx, opts = {}) {
+  const prevSel = s.sel;
   s.sel = Math.max(0, Math.min(idx, s.model.content.length - 1));
   const vw = viewOf(s);
+  let zoomed = false;
   if (s.sel < vw.a || s.sel > vw.b) {
     const half = (vw.b - vw.a) / 2;
+    zoomed = true; // the window moved: pixel positions before/after are not comparable
     setView(s, s.sel - half, s.sel + half);
   }
   const rec = s.model.content[s.sel];
@@ -885,7 +906,7 @@ function select(s, idx, opts = {}) {
     row.classList.add('sel');
     if (opts.scrollRail) row.scrollIntoView?.({ block: 'center' });
   }
-  drawTape(s);
+  glideSel(s, prevSel, zoomed);
   renderTabs(s);
   if (!opts.skipPanel) renderPanel(s);
   const selRec = s.model.content[s.sel];
@@ -1038,8 +1059,15 @@ function renderRailMap(s) {
     const k1 = Math.max(0, Math.min(rows.length - 1, Math.floor((rail.scrollTop / total) * rows.length)));
     const k2 = Math.max(0, Math.min(rows.length - 1, Math.ceil(((rail.scrollTop + rail.clientHeight) / total) * rows.length) - 1));
     const i1 = +rows[k1].dataset.i, i2 = +rows[k2].dataset.i;
-    g.fillStyle = 'rgba(223,228,236,0.12)';
-    g.fillRect(x(i1), 0, Math.max(3, x(i2) - x(i1)), H);
+    const bx0 = x(i1), bw = Math.max(3, x(i2) - x(i1));
+    // idle: a hint. held: a grabbed object — brighter, with accent edges.
+    g.fillStyle = s._scrubbing ? 'rgba(223,228,236,0.22)' : 'rgba(223,228,236,0.12)';
+    g.fillRect(bx0, 0, bw, H);
+    if (s._scrubbing) {
+      g.fillStyle = ACCENT;
+      g.fillRect(bx0, 0, 1, H);
+      g.fillRect(bx0 + bw - 1, 0, 1, H);
+    }
   }
   // selection
   g.strokeStyle = ACCENT; g.lineWidth = 1.5;
@@ -1267,10 +1295,15 @@ function initTape(s) {
     return e.clientY - r.top >= r.height - TAPE.bandH - 2;
   };
 
+  // the tape does three things by region; the pointer should say which.
+  // cached so the per-pixel mousemove writes style only on an actual change
+  const setCur = (c) => { if (cv.dataset.cur !== c) { cv.dataset.cur = c; cv.style.cursor = c; } };
+
   let downX = null, dragging = false;
 
   cv.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || inBand(e)) return;
+    document.body.classList.add('dragging'); // latch ew-resize for the whole zoom drag
     downX = pxOf(e);
     dragging = false;
     e.preventDefault();
@@ -1290,6 +1323,7 @@ function initTape(s) {
     if (dragging) { s.dragSel = [downX, px]; drawTape(s); }
   };
   const onWinUp = (e) => {
+    document.body.classList.remove('dragging'); // unconditional: a plain click must never strand it
     if (downX == null) return;
     const wasDrag = dragging;
     const startPx = downX, endPx = pxOf(e);
@@ -1323,6 +1357,7 @@ function initTape(s) {
   });
 
   cv.addEventListener('mousemove', (e) => {
+    setCur(inBand(e) ? 'grab' : 'crosshair'); // band pans, plot scrubs/zooms
     if (downX != null && dragging) return; // no tooltip mid-drag
     const px = pxOf(e);
     const i = idxFromEvent(e);
@@ -1357,7 +1392,11 @@ function initTape(s) {
     const u = tokensAt(s.model, i);
     tip.innerHTML = `<span class="k">#${i + 1} ${esc(rec.subtype || rec.type)}</span> · ${u ? fmtInt(u.ctx) + ' tok' : ''}<br>${esc(recPreview(rec).slice(0, 120))}`;
   });
-  cv.addEventListener('mouseleave', () => { s.hover = null; tip.style.display = 'none'; drawTape(s); });
+  cv.addEventListener('mouseleave', () => {
+    s.hover = null; tip.style.display = 'none';
+    cv.dataset.cur = ''; cv.style.cursor = '';
+    drawTape(s);
+  });
 
   document.getElementById('zoomOut').addEventListener('click', () => {
     const v = viewOf(s), c = (v.a + v.b) / 2, half = v.b - v.a;
@@ -1371,6 +1410,48 @@ function initTape(s) {
     renderRailMap(s);
   });
   updateZoomReadout(s);
+}
+
+/* The playhead eases to its new record instead of teleporting, so the eye keeps
+   hold of both origin and destination. ~150ms of easeOutCubic on one rAF loop —
+   the same work a single tape hover already costs, times ~9 frames.
+   It snaps (no loop, no state left behind) when motion is off, when the
+   selection moved the zoom window (before/after pixels are not comparable, and
+   setView has already redrawn), or when the jump is wider than the visible
+   window — that far, a slide is a distraction, not continuity. */
+function glideSel(s, prevSel, zoomed) {
+  if (s._glideRaf) { cancelAnimationFrame(s._glideRaf); s._glideRaf = 0; }
+  const cv = document.getElementById('tape');
+  const v = viewOf(s);
+  const snap = !cv || zoomed
+    || prevSel == null || !Number.isFinite(prevSel) || prevSel === s.sel
+    || Math.abs(s.sel - prevSel) > (v.b - v.a)
+    || matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (snap) {
+    s.selDraw = null; s._glideFrame = false;
+    drawTape(s);
+    return;
+  }
+  const from = s.selDraw ?? prevSel; // re-click mid-flight resumes from where it looks
+  const to = s.sel;
+  const t0 = performance.now();
+  const step = (now) => {
+    if (document.getElementById('tape') !== cv || state.session !== s) {
+      s._glideRaf = 0; s._glideFrame = false; s.selDraw = null; // route changed under us
+      return;
+    }
+    const k = Math.min(1, (now - t0) / 150);
+    if (k >= 1) {
+      s.selDraw = null; s._glideFrame = false; s._glideRaf = 0;
+      drawTape(s); // cleared first, so the lanes rebuild exactly once — here
+      return;
+    }
+    s.selDraw = from + (to - from) * (1 - Math.pow(1 - k, 3));
+    s._glideFrame = true; // intermediate frames skip the lane DOM rebuild
+    drawTape(s);
+    s._glideRaf = requestAnimationFrame(step);
+  };
+  s._glideRaf = requestAnimationFrame(step);
 }
 
 function drawTape(s) {
@@ -1533,17 +1614,47 @@ function drawTape(s) {
       g.fillRect(fx(i) - 0.75, bandTop, 1.5, TAPE.bandH);
     }
   }
+  const sx = s.selDraw ?? s.sel; // float drawn-index while the playhead glides
   g.fillStyle = ACCENT;
-  g.fillRect(fx(s.sel) - 1, bandTop, 2, TAPE.bandH);
+  g.fillRect(fx(sx) - 1, bandTop, 2, TAPE.bandH);
 
   // live drag-selection overlay
   if (s.dragSel) {
     const ax = Math.min(s.dragSel[0], s.dragSel[1]);
     const bx = Math.max(s.dragSel[0], s.dragSel[1]);
-    g.fillStyle = 'rgba(240,180,41,0.15)';
-    g.fillRect(ax, 0, bx - ax, bandTop - 4);
-    g.strokeStyle = ACCENT; g.lineWidth = 1;
-    g.strokeRect(ax + 0.5, 0.5, Math.max(1, bx - ax - 1), bandTop - 4.5);
+    const ia = geom.idx(ax), ib = geom.idx(bx);
+    // setView recenters anything under ~5 records; show that floor while dragging
+    // rather than springing it on the user after release
+    const belowFloor = Math.abs(ib - ia) < 4;
+    const jawH = bandTop - 4;
+    if (belowFloor) {
+      g.fillStyle = 'rgba(223,228,236,0.06)';
+      g.fillRect(ax, 0, bx - ax, jawH);
+      g.fillStyle = 'rgba(223,228,236,0.45)';
+      g.fillRect(ax, 0, 1, jawH);
+      g.fillRect(bx - 1, 0, 1, jawH);
+    } else {
+      g.fillStyle = 'rgba(240,180,41,0.15)';
+      g.fillRect(ax, 0, bx - ax, jawH);
+      g.fillStyle = ACCENT;
+      g.fillRect(ax - 1, 0, 2, jawH);
+      g.fillRect(bx - 1, 0, 2, jawH);
+      // serifs point inward, so the pair reads as calipers closing on the trace
+      g.fillRect(ax - 1, 0, 5, 1); g.fillRect(ax - 1, bandTop - 5, 5, 1);
+      g.fillRect(bx - 4, 0, 5, 1); g.fillRect(bx - 4, bandTop - 5, 5, 1);
+    }
+    if (bx - ax > 90) {
+      let label = `${Math.round(Math.abs(ib - ia)) + 1} rec`;
+      const dtimes = timeIndex(s);
+      if (s.axis === 'time' && dtimes.length > 1) {
+        label += ` · ${fmtDur(Math.abs(timeAtIdx(dtimes, ib) - timeAtIdx(dtimes, ia)))}`;
+      }
+      g.fillStyle = belowFloor ? 'rgba(223,228,236,.5)' : 'rgba(240,180,41,.85)';
+      g.font = '10.5px ui-monospace, Menlo, monospace';
+      g.textAlign = 'center';
+      g.fillText(label, (ax + bx) / 2, bandTop + TAPE.bandH - 1);
+      g.textAlign = 'start';
+    }
   }
 
   // hover crosshair
@@ -1554,11 +1665,11 @@ function drawTape(s) {
   // selection cursor
   if (s.sel >= v.a - 0.5 && s.sel <= v.b + 0.5) {
     g.strokeStyle = ACCENT; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(x(s.sel), 0); g.lineTo(x(s.sel), bandTop - 2); g.stroke();
+    g.beginPath(); g.moveTo(x(sx), 0); g.lineTo(x(sx), bandTop - 2); g.stroke();
     g.fillStyle = ACCENT;
-    g.beginPath(); g.moveTo(x(s.sel) - 5, 0); g.lineTo(x(s.sel) + 5, 0); g.lineTo(x(s.sel), 7); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(x(sx) - 5, 0); g.lineTo(x(sx) + 5, 0); g.lineTo(x(sx), 7); g.closePath(); g.fill();
   }
-  if (s.agents?.length) renderLanes(s);
+  if (s.agents?.length && !s._glideFrame) renderLanes(s); // lanes rebuild DOM: once, on arrival
 }
 
 // ---------- agent sub-timelines ----------
