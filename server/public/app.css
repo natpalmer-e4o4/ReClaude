@@ -1,16 +1,17 @@
-/* Context Explorer — flight recorder for the context window.
-   Dark instrument panel; validated categorical palette (dataviz six checks, dark surface #14181f):
+/* ReClaude — flight recorder for the context window.
+   Green-velvet / forest instrument panel: deep forest surfaces, brass accent.
+   Categorical palette re-validated (dataviz six checks) against surface #0f1a13:
    user #4a8fdd · attachment #27a578 · assistant #c08618 · tool/sidechain #8a5fe8 · event/compact #d75d84 */
 
 :root {
-  --bg: #14181f;
-  --panel: #1b2029;
-  --panel-2: #222834;
-  --line: #2e3542;
-  --ink: #dfe4ec;
-  --muted: #8b94a7;
-  --faint: #5d6577;
-  --accent: #f0b429;        /* chrome accent — amber phosphor */
+  --bg: #0f1a13;            /* forest floor */
+  --panel: #16241b;         /* velvet nap */
+  --panel-2: #1d2f23;       /* velvet, brushed the other way */
+  --line: #294032;
+  --ink: #e2eae2;
+  --muted: #90a998;
+  --faint: #5f7a68;
+  --accent: #e9b949;        /* brass on green velvet */
   --k-user: #4a8fdd;
   --k-attach: #27a578;
   --k-assistant: #c08618;
@@ -105,7 +106,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   position: fixed; pointer-events: none; z-index: 50; display: none;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px;
   padding: 6px 10px; font-family: var(--mono); font-size: 11.5px; color: var(--ink);
-  max-width: 340px; box-shadow: 0 4px 18px rgba(0,0,0,.5);
+  max-width: 340px; box-shadow: 0 4px 18px rgba(0, 12, 6, .55);
 }
 .tape-tip .k { color: var(--muted); }
 .zoom-ctl { display: inline-flex; gap: 8px; align-items: center; }
@@ -122,7 +123,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .legend-item:hover { color: var(--ink); border-color: var(--line); }
-.legend-item.on { color: var(--ink); border-color: var(--accent); background: rgba(240, 180, 41, 0.08); }
+.legend-item.on { color: var(--ink); border-color: var(--accent); background: rgba(233, 185, 73, 0.08); }
 .mini-btn {
   background: var(--panel-2); color: var(--muted); border: 1px solid var(--line);
   border-radius: 5px; font: 600 11px var(--mono); padding: 2px 9px; cursor: pointer;
@@ -142,7 +143,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
   transition: transform .09s cubic-bezier(.2,.7,.3,1), border-color .12s, background-color .12s, box-shadow .12s, color .12s;
 }
 .snap-chip:hover { color: var(--ink); border-color: var(--accent); }
-.snap-chip.on { color: var(--ink); border-color: var(--accent); background: rgba(240, 180, 41, 0.08); }
+.snap-chip.on { color: var(--ink); border-color: var(--accent); background: rgba(233, 185, 73, 0.08); }
 .snap-chip-name { font-weight: 700; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .snap-chip.on .snap-chip-name { color: var(--accent); }
 .snap-chip-time { font-size: 11.5px; }
@@ -153,11 +154,11 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 @media (max-width: 1100px) { .session-body { grid-template-columns: 1fr; } }
 
 .rail { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); overflow: hidden; }
-.rail-map { width: 100%; height: 38px; display: block; background: var(--panel-2); border-bottom: 1px solid var(--line); cursor: ew-resize; }
+.rail-map { width: 100%; height: 38px; display: block; background: var(--panel-2); border-bottom: 1px solid var(--line); cursor: pointer; }
 .zoom-edge {
   font: 600 10px var(--mono); letter-spacing: .06em; color: var(--accent);
-  padding: 3px 12px; background: rgba(240, 180, 41, 0.06);
-  border-top: 1px dashed rgba(240, 180, 41, 0.45); border-bottom: 1px dashed rgba(240, 180, 41, 0.45);
+  padding: 3px 12px; background: rgba(233, 185, 73, 0.06);
+  border-top: 1px dashed rgba(233, 185, 73, 0.45); border-bottom: 1px dashed rgba(233, 185, 73, 0.45);
 }
 .rec.zoom-out { opacity: 0.35; }
 .rail.collapsed .rail-map, .rail.collapsed .rail-search, .rail.collapsed .rail-list, .rail.collapsed .rail-head label, .rail.collapsed #railCount { display: none; }
@@ -185,7 +186,9 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 /* ---------- context panel ---------- */
 .ctx-panel { min-width: 0; }
 .panel-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
-.panel-head .tabs { margin-bottom: 0; flex: 0 1 auto; }
+/* the tab row owns its own line and justifies across it — with eight tabs the
+   spread reads as a menu bar rather than a left-packed clump */
+.panel-head .tabs { margin-bottom: 0; flex: 1 1 100%; justify-content: space-between; }
 .tab-sep { width: 1px; align-self: stretch; background: var(--line); margin: 3px 4px; flex: none; }
 .panel-head .sq { flex: 1 1 180px; max-width: 340px; margin-left: auto; }
 .rail-search { padding: 6px 10px; border-bottom: 1px solid var(--line); }
@@ -235,7 +238,7 @@ pre.block {
 }
 .chip-f:hover { background: var(--panel-2); }
 /* ON ring is an inset shadow, not an outline — the outline belongs to focus alone */
-.chip-f.on { background: rgba(240, 180, 41, 0.12); box-shadow: inset 0 0 0 1px var(--accent); }
+.chip-f.on { background: rgba(233, 185, 73, 0.12); box-shadow: inset 0 0 0 1px var(--accent); }
 .chip.new { border-color: var(--k-attach); color: var(--k-attach); }
 
 /* message thread inside context tab */
@@ -264,7 +267,7 @@ pre.block {
 /* inset rather than a real 3px border: a border would jog the row's text 2px
    sideways the instant it is focused (same idiom as .pair-hl below) */
 .msg.focus { box-shadow: inset 3px 0 0 var(--accent); border-color: var(--accent); }
-.msg.focus > summary { background: rgba(240, 180, 41, 0.06); }
+.msg.focus > summary { background: rgba(233, 185, 73, 0.06); }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
@@ -333,7 +336,7 @@ body.session-mode .ctx-panel .panel-head {
 .cm-s-ctx .CodeMirror-gutters { background: var(--panel); border-right: 1px solid var(--line); }
 .cm-s-ctx .CodeMirror-linenumber { color: var(--faint); font-size: 11px; }
 .cm-s-ctx .CodeMirror-cursor { border-left-color: transparent; }
-.cm-s-ctx .CodeMirror-selected { background: rgba(240, 180, 41, 0.15); }
+.cm-s-ctx .CodeMirror-selected { background: rgba(233, 185, 73, 0.15); }
 .cm-s-ctx span.cm-string { color: #27a578; }
 .cm-s-ctx span.cm-string.cm-property { color: #4a8fdd; }
 .cm-s-ctx span.cm-number { color: #f0b429; }
@@ -357,7 +360,7 @@ body.session-mode .ctx-panel .panel-head {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
 }
 .lane-bar:hover { background: rgba(138, 95, 232, 0.45); }
-.lane-bar.on { border-color: var(--accent); background: rgba(240, 180, 41, 0.18); }
+.lane-bar.on { border-color: var(--accent); background: rgba(233, 185, 73, 0.18); }
 .lane-chip {
   position: absolute; height: 14px; box-sizing: border-box;
   background: rgba(138, 95, 232, 0.35); border: 1px dashed var(--k-tool); border-radius: 4px;
@@ -369,7 +372,7 @@ body.session-mode .ctx-panel .panel-head {
 .lane-pop {
   position: fixed; z-index: 60; min-width: 280px; max-width: 400px; max-height: 320px; overflow-y: auto;
   background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55); overscroll-behavior: contain;
+  box-shadow: 0 10px 28px rgba(0, 12, 6, 0.6); overscroll-behavior: contain;
 }
 .lane-pop-item { display: flex; gap: 8px; align-items: center; padding: 4px 7px; border-radius: 5px; cursor: pointer; font: 11.5px var(--mono); color: var(--ink); }
 .lane-pop-item:hover { background: var(--panel); }
@@ -446,7 +449,7 @@ body.dragging { user-select: none; }
    preventDefault on mousedown, so a drag can never start a selection anyway,
    and body.dragging covers the gesture window regardless */
 .rail-map { transition: box-shadow .12s; }
-.rail-map.scrubbing { box-shadow: inset 0 0 0 1px rgba(240, 180, 41, .35); }
+.rail-map.scrubbing { box-shadow: inset 0 0 0 1px rgba(233, 185, 73, .35); }
 
 /* === interaction: chrome & rows (WS-B) === */
 /* Three intensities of one mechanism: a hairline cap at rest, a hard amber
@@ -470,10 +473,10 @@ body.dragging { user-select: none; }
 .lane-chip:focus-visible,
 .lane-pop-item:focus-visible {
   outline: 1px solid var(--accent); outline-offset: 1px;
-  box-shadow: 0 0 0 3px rgba(240,180,41,.12);
+  box-shadow: 0 0 0 3px rgba(233,185,73,.12);
 }
 /* on + focused: keep the ON ring, add the bloom */
-.chip-f.on:focus-visible { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgba(240,180,41,.12); }
+.chip-f.on:focus-visible { box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 3px rgba(233,185,73,.12); }
 
 /* key travel — the cap bottoms out and springs back */
 .mini-btn:active,
@@ -489,18 +492,18 @@ body.dragging { user-select: none; }
 .session-card:active { transform: translateY(1px); }
 
 /* row detent — the press is a dimmer draft of the selection tick, same channel */
-.rec:active { background: var(--panel-2); border-left-color: rgba(240,180,41,.40); }
-.msg.mrow:active { background: var(--panel-2); box-shadow: inset 3px 0 0 rgba(240,180,41,.40); }
+.rec:active { background: var(--panel-2); border-left-color: rgba(233,185,73,.40); }
+.msg.mrow:active { background: var(--panel-2); box-shadow: inset 3px 0 0 rgba(233,185,73,.40); }
 
 /* keyboard focus on rows — same channels, one notch brighter, never an outline */
 .rec:focus-visible {
   outline: none; background: var(--panel-2);
-  border-left-color: rgba(240,180,41,.55);
-  box-shadow: inset 0 0 0 1px rgba(240,180,41,.20);
+  border-left-color: rgba(233,185,73,.55);
+  box-shadow: inset 0 0 0 1px rgba(233,185,73,.20);
 }
 .msg.mrow:focus-visible {
   outline: none; background: var(--panel-2);
-  box-shadow: inset 3px 0 0 rgba(240,180,41,.55), inset 0 0 0 1px rgba(240,180,41,.20);
+  box-shadow: inset 3px 0 0 rgba(233,185,73,.55), inset 0 0 0 1px rgba(233,185,73,.20);
 }
 /* a committed selection never dims under press or focus */
 .rec.sel:active, .rec.sel:focus-visible { border-left-color: var(--accent); }
@@ -517,7 +520,7 @@ body.dragging { user-select: none; }
 .search-input:focus-visible,
 .pill-select:focus-visible {
   outline: none; border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(240,180,41,.10);
+  box-shadow: 0 0 0 3px rgba(233,185,73,.10);
 }
 
 /* === interaction: panel & headers (WS-C) === */
@@ -529,15 +532,15 @@ body.dragging { user-select: none; }
 /* the escape hatch announces where it dropped you; the fade ends on the row's
    resting colour rather than transparent, because an animation replaces the
    painted background outright and ending clear would flash the pane through */
-@keyframes row-arrive { from { background: rgba(240, 180, 41, 0.16); } to { background: var(--panel); } }
+@keyframes row-arrive { from { background: rgba(233, 185, 73, 0.16); } to { background: var(--panel); } }
 .msg.arrived { animation: row-arrive .38s ease-out; }
 
 /* sticky heads: shadow only once content is actually sliding underneath */
 body.session-mode .ctx-panel.stuck .panel-head {
-  box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 8px -6px rgba(0, 14, 7, 0.7);
   border-bottom-color: var(--line);
 }
-.rail.scrolled .rail-head { box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.6); }
+.rail.scrolled .rail-head { box-shadow: 0 6px 8px -6px rgba(0, 14, 7, 0.7); }
 
 /* second-level heads inherit the pane's signal; borders are reserved
    transparent up front so colouring them in never reflows the list */
@@ -563,6 +566,6 @@ body.session-mode .ctx-panel.stuck .layer[open] > .body { border-top-color: tran
    bar, keeping WS-B's focus bloom. Mirrors WS-B's own .rec.sel guard in the
    rail: travel is the touch signal, amber stays the state signal. */
 .msg.focus:active { box-shadow: inset 3px 0 0 var(--accent); }
-.msg.focus:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px rgba(240,180,41,.20); }
+.msg.focus:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px rgba(233,185,73,.20); }
 .msg.focus.pair-hl:active { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool); }
-.msg.focus.pair-hl:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool), inset 0 0 0 1px rgba(240,180,41,.20); }
+.msg.focus.pair-hl:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool), inset 0 0 0 1px rgba(233,185,73,.20); }

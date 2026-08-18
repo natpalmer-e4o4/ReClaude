@@ -59,6 +59,8 @@ if (DEMO_SEED && fs.existsSync(SEED_DIR)) {
       meta.project = meta.cwd ? meta.cwd.replace(/[/.]/g, '-') : null;
       const snapshots = {};
       try { for (const f of fs.readdirSync(path.join(dir, 'snapshots'))) snapshots[f] = fs.readFileSync(path.join(dir, 'snapshots', f)); } catch {}
+      let memory = null;
+      try { memory = JSON.parse(fs.readFileSync(path.join(dir, 'memory.json'), 'utf8')); } catch {}
       const files = {};
       const walk = (base, rel) => {
         for (const ent of fs.readdirSync(base, { withFileTypes: true })) {
@@ -68,7 +70,7 @@ if (DEMO_SEED && fs.existsSync(SEED_DIR)) {
         }
       };
       try { walk(path.join(dir, 'files'), ''); } catch {}
-      demoSessions.set(id, { transcript, meta, snapshots, files });
+      demoSessions.set(id, { transcript, meta, snapshots, files, memory });
       console.log(`demo seed loaded (in-memory): ${id} — ${meta.lineCount} records`);
     } catch (e) { console.error('demo seed failed:', id, e.message); }
   }
@@ -548,6 +550,7 @@ const server = http.createServer(async (req, res) => {
           const b = demo.snapshots[decodeURIComponent(rest.slice('/snapshots/'.length))];
           return b ? send(res, 200, b, MIME['.json']) : send(res, 404, { error: 'snapshot not found' });
         }
+        if (rest === '/memory') return send(res, 200, demo.memory || { files: [] });
         if (rest.startsWith('/files/')) {
           const b = demo.files[decodeURIComponent(rest.slice('/files/'.length))];
           return b ? send(res, 200, b, 'text/plain; charset=utf-8') : send(res, 404, { error: 'file not found' });
@@ -563,6 +566,25 @@ const server = http.createServer(async (req, res) => {
       if (rest === '/transcript') {
         const f = imported ? path.join(dir, 'transcript.jsonl') : host.path;
         return send(res, 200, await fsp.readFile(f), MIME['.jsonl']);
+      }
+      // Claude's persistent memory for the project this session belongs to
+      if (rest === '/memory') {
+        let slug = host?.slug || null;
+        if (!slug && imported) {
+          try { slug = JSON.parse(await fsp.readFile(path.join(dir, 'meta.json'), 'utf8')).project; } catch {}
+        }
+        const memDir = HOST_PROJECTS && slug ? path.join(HOST_PROJECTS, slug, 'memory') : null;
+        if (!memDir || !fs.existsSync(memDir)) return send(res, 200, { files: [] });
+        const out = [];
+        for (const name of (await fsp.readdir(memDir)).sort()) {
+          if (!name.endsWith('.md')) continue;
+          const fp = path.join(memDir, name);
+          try {
+            const st2 = await fsp.stat(fp);
+            if (st2.isFile()) out.push({ name, content: await fsp.readFile(fp, 'utf8'), modified: st2.mtime.toISOString() });
+          } catch {}
+        }
+        return send(res, 200, { slug, files: out });
       }
       if (rest === '' || rest === '/') {
         if (imported) {

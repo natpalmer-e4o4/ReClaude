@@ -34,7 +34,7 @@ const LEGEND = [
   { k: 'event', f: 'compact', name: 'compaction splice', swatch: 'line',
     desc: 'Where the context window was compacted: everything left of the dashed line was dropped from the live window and replaced by a harness-written summary message (labeled "compact summary" — it is not a human turn). This filter matches both the boundary and its summary.' },
 ];
-const ACCENT = '#f0b429';
+const ACCENT = '#e9b949'; // brass on green velvet
 
 const $view = document.getElementById('view');
 const state = { sessions: null, session: null };
@@ -170,6 +170,7 @@ const API = {
   file: (id, rel) => (STATIC ? `data/s/${id}/files/${rel}` : `/api/sessions/${id}/files/${encodeURIComponent(rel)}`),
   fhList: (id) => (STATIC ? `data/s/${id}/filehistory.json` : `/api/filehistory/${id}`),
   fhVersion: (id, name) => (STATIC ? `data/s/${id}/fh/${name}` : `/api/filehistory/${id}/${encodeURIComponent(name)}`),
+  memory: (id) => (STATIC ? `data/s/${id}/memory.json` : `/api/sessions/${id}/memory`),
 };
 
 async function jget(url) {
@@ -634,7 +635,7 @@ async function sessionView(id) {
     <div id="agentFocusBar" class="agent-focus-bar" style="display:none"></div>
     <div class="tape-wrap">
       <div class="tape-head">
-        <span class="eyebrow">context tape — click places the playhead · drag zooms the timeline · double-click resets</span>
+        <span class="eyebrow">context tape — click to select a moment · drag to zoom · double-click resets</span>
         <span class="zoom-ctl">
           <span class="readout" id="zoomInfo"></span>
           <button id="zoomOut" type="button" title="Zoom out ×2">−</button>
@@ -871,6 +872,10 @@ async function sessionView(id) {
   renderPreview(s);
   select(s, s.sel, { scrollRail: true });
   loadAgents(s); // async; lanes appear when the companion files are parsed
+  jget(API.memory(id)).then((m) => {
+    s.memory = m;
+    if (state.session === s) { renderTabs(s); if (s.tab === 'memory') renderPanel(s); }
+  }).catch(() => { s.memory = { files: [] }; });
   // probe which real file backups exist on disk for this session
   fetch(API.fhList(id)).then((r) => (r.ok ? r.json() : null)).then((list) => {
     s.fhFiles = Array.isArray(list) ? new Set(list) : null;
@@ -1010,7 +1015,7 @@ function renderRailMap(s) {
   const uFracOf = (i) => (x(i) - 2) / Math.max(1, W - 4);
   const stripH = 10; // bottom strip: event-kind distribution
   if (mscale) {
-    g.fillStyle = 'rgba(93,101,119,0.18)';
+    g.fillStyle = 'rgba(95,122,104,0.18)';
     for (const sg of mscale.segs) if (sg.gap) g.fillRect(sg.x0, 0, Math.max(1.5, sg.x1 - sg.x0), H);
   }
   const y = (t) => H - stripH - 2 - (t / s._maxTok) * (H - stripH - 6);
@@ -1047,9 +1052,9 @@ function renderRailMap(s) {
   // zoom window
   const v = viewOf(s);
   if (!(v.a <= 0 && v.b >= n - 1)) {
-    g.fillStyle = 'rgba(240,180,41,0.16)';
+    g.fillStyle = 'rgba(233,185,73,0.16)';
     g.fillRect(x(v.a), 0, Math.max(2, x(v.b) - x(v.a)), H);
-    g.strokeStyle = 'rgba(240,180,41,0.6)';
+    g.strokeStyle = 'rgba(233,185,73,0.6)';
     g.strokeRect(x(v.a) + 0.5, 0.5, Math.max(2, x(v.b) - x(v.a)) - 1, H - 1);
   }
   // visible slice of the list
@@ -1062,7 +1067,7 @@ function renderRailMap(s) {
     const i1 = +rows[k1].dataset.i, i2 = +rows[k2].dataset.i;
     const bx0 = x(i1), bw = Math.max(3, x(i2) - x(i1));
     // idle: a hint. held: a grabbed object — brighter, with accent edges.
-    g.fillStyle = s._scrubbing ? 'rgba(223,228,236,0.22)' : 'rgba(223,228,236,0.12)';
+    g.fillStyle = s._scrubbing ? 'rgba(223,228,236,0.22)' : 'rgba(226,234,226,0.12)';
     g.fillRect(bx0, 0, bw, H);
     if (s._scrubbing) {
       g.fillStyle = ACCENT;
@@ -1418,7 +1423,7 @@ function initTape(s) {
   updateZoomReadout(s);
 }
 
-/* The playhead eases to its new record instead of teleporting, so the eye keeps
+/* The selection cursor eases to its new record instead of teleporting, so the eye keeps
    hold of both origin and destination. ~150ms of easeOutCubic on one rAF loop —
    the same work a single tape hover already costs, times ~9 frames.
    It snaps (no loop, no state left behind) when motion is off, when the
@@ -1504,18 +1509,18 @@ function drawTape(s) {
       s._gapBands.push({ px0, px1, dur: sg.dur, t0: sg.t0, t1: sg.t1 });
       g.save();
       g.beginPath(); g.rect(px0, 2, px1 - px0, bandTop - 4); g.clip();
-      g.fillStyle = 'rgba(93,101,119,0.10)';
+      g.fillStyle = 'rgba(95,122,104,0.10)';
       g.fillRect(px0, 2, px1 - px0, bandTop - 4);
-      g.strokeStyle = 'rgba(139,148,167,0.35)'; g.lineWidth = 1;
+      g.strokeStyle = 'rgba(144,169,152,0.35)'; g.lineWidth = 1;
       for (let hx = px0 - bandTop; hx < px1; hx += 7) {
         g.beginPath(); g.moveTo(hx, bandTop); g.lineTo(hx + bandTop, 0); g.stroke();
       }
       g.restore();
-      g.strokeStyle = 'rgba(139,148,167,0.5)';
+      g.strokeStyle = 'rgba(144,169,152,0.5)';
       g.beginPath(); g.moveTo(px0 + 0.5, 2); g.lineTo(px0 + 0.5, bandTop - 2);
       g.moveTo(px1 - 0.5, 2); g.lineTo(px1 - 0.5, bandTop - 2); g.stroke();
       if (px1 - px0 >= 44) {
-        g.fillStyle = 'rgba(223,228,236,0.75)';
+        g.fillStyle = 'rgba(226,234,226,0.75)';
         g.font = '9.5px ui-monospace, Menlo, monospace';
         g.textAlign = 'center';
         g.fillText(`⋯ ${fmtDur(sg.dur)}`, (px0 + px1) / 2, 20);
@@ -1543,13 +1548,13 @@ function drawTape(s) {
       const MIN_GAP = 32;
       let lastX = -Infinity;
       s._grid = s._grid.filter((gl) => (gl.px - lastX >= MIN_GAP ? ((lastX = gl.px), true) : false));
-      g.strokeStyle = 'rgba(223,228,236,0.10)';
+      g.strokeStyle = 'rgba(226,234,226,0.10)';
       g.lineWidth = 1;
       for (const gl of s._grid) {
         g.beginPath(); g.moveTo(gl.px + 0.5, 2); g.lineTo(gl.px + 0.5, bandTop - 2); g.stroke();
       }
       let lastLabelX = -1e9;
-      g.fillStyle = 'rgba(139,148,167,0.75)';
+      g.fillStyle = 'rgba(144,169,152,0.75)';
       g.font = '9.5px ui-monospace, Menlo, monospace';
       for (const gl of s._grid) {
         if (gl.px - lastLabelX < 64) continue;
@@ -1564,7 +1569,7 @@ function drawTape(s) {
   g.moveTo(x(i0), y(pts[i0]));
   for (let i = i0 + 1; i <= i1; i++) g.lineTo(x(i), y(pts[i]));
   g.lineTo(x(i1), chartH + 4); g.lineTo(x(i0), chartH + 4); g.closePath();
-  g.fillStyle = 'rgba(192,134,24,0.22)';
+  g.fillStyle = 'rgba(192,134,24,0.26)';
   g.fill();
   g.beginPath();
   g.moveTo(x(i0), y(pts[i0]));
@@ -1606,9 +1611,9 @@ function drawTape(s) {
   const fx = bandScale
     ? (i) => bandScale.xOfT(timeAtIdx(bandTimes, i))
     : (i) => (i / Math.max(1, n - 1)) * (W - 2 * TAPE.pad) + TAPE.pad;
-  g.fillStyle = 'rgba(223,228,236,0.08)';
+  g.fillStyle = 'rgba(226,234,226,0.08)';
   g.fillRect(TAPE.pad, bandTop, W - 2 * TAPE.pad, TAPE.bandH);
-  g.fillStyle = 'rgba(240,180,41,0.35)';
+  g.fillStyle = 'rgba(233,185,73,0.35)';
   g.fillRect(fx(v.a), bandTop, Math.max(2, fx(v.b) - fx(v.a)), TAPE.bandH);
   // active filters: paint every match on the full extent so you can see where they live
   if (s.filter && s.filter.size) {
@@ -1620,7 +1625,7 @@ function drawTape(s) {
       g.fillRect(fx(i) - 0.75, bandTop, 1.5, TAPE.bandH);
     }
   }
-  const sx = s.selDraw ?? s.sel; // float drawn-index while the playhead glides
+  const sx = s.selDraw ?? s.sel; // float drawn-index while the cursor glides
   g.fillStyle = ACCENT;
   g.fillRect(fx(sx) - 1, bandTop, 2, TAPE.bandH);
 
@@ -1640,7 +1645,7 @@ function drawTape(s) {
       g.fillRect(ax, 0, 1, jawH);
       g.fillRect(bx - 1, 0, 1, jawH);
     } else {
-      g.fillStyle = 'rgba(240,180,41,0.15)';
+      g.fillStyle = 'rgba(233,185,73,0.15)';
       g.fillRect(ax, 0, bx - ax, jawH);
       g.fillStyle = ACCENT;
       g.fillRect(ax - 1, 0, 2, jawH);
@@ -1655,7 +1660,7 @@ function drawTape(s) {
       if (s.axis === 'time' && dtimes.length > 1) {
         label += ` · ${fmtDur(Math.abs(timeAtIdx(dtimes, ib) - timeAtIdx(dtimes, ia)))}`;
       }
-      g.fillStyle = belowFloor ? 'rgba(223,228,236,.5)' : 'rgba(240,180,41,.85)';
+      g.fillStyle = belowFloor ? 'rgba(223,228,236,.5)' : 'rgba(233,185,73,.85)';
       g.font = '10.5px ui-monospace, Menlo, monospace';
       g.textAlign = 'center';
       g.fillText(label, (ax + bx) / 2, bandTop + TAPE.bandH - 1);
@@ -1665,7 +1670,7 @@ function drawTape(s) {
 
   // hover crosshair
   if (s.hover != null && s.hover >= i0 && s.hover <= i1) {
-    g.strokeStyle = 'rgba(223,228,236,0.35)'; g.lineWidth = 1;
+    g.strokeStyle = 'rgba(226,234,226,0.35)'; g.lineWidth = 1;
     g.beginPath(); g.moveTo(x(s.hover), 0); g.lineTo(x(s.hover), bandTop - 2); g.stroke();
   }
   // selection cursor
@@ -1906,6 +1911,7 @@ function renderTabs(s) {
     ['tools', `Tools${n((snap?.tools || []).length || st.deferredTools.size)}`],
     ['skills', `Skills${n(st.skillListing?.skillCount)}`],
     ['mcp', `MCP${n(st.mcpInstructions.length)}`],
+    ['memory', `Memory${n((s.memory?.files || []).filter((f) => f.name !== 'MEMORY.md').length)}`],
     ['sep2', '|'],
     ['snapshot', `Snapshot${n(s.snapshots.length)}`],
     ['files', `Files${n((s.manifest.files || []).length)}`],
@@ -1931,7 +1937,7 @@ function renderTabs(s) {
   });
   // sort order and find-in-view only make sense on the event-list tabs
   const listy = s.tab === 'timeline' || s.tab === 'context';
-  const searchable = listy || ['sysprompt', 'tools', 'skills', 'mcp'].includes(s.tab);
+  const searchable = listy || ['sysprompt', 'tools', 'skills', 'mcp', 'memory'].includes(s.tab);
   const sortBtn = document.getElementById('sortToggle');
   if (sortBtn) sortBtn.style.display = listy ? '' : 'none';
   const sqMain = document.getElementById('sqMain');
@@ -2005,6 +2011,7 @@ function renderPanel(s) {
   else if (s.tab === 'tools') renderToolsTab(s, panel);
   else if (s.tab === 'skills') renderSkillsTab(s, panel);
   else if (s.tab === 'mcp') renderMcpTab(s, panel);
+  else if (s.tab === 'memory') renderMemoryTab(s, panel);
   else if (s.tab === 'snapshot') renderSnapshotTab(s, panel);
   else if (s.tab === 'files') renderFilesTab(s, panel);
   else renderTimelineTab(s, panel); // 'timeline' and any legacy tab id
@@ -2167,7 +2174,7 @@ function renderToolsTab(s, panel) {
         { kind: 'tool', badge: 'tool definition', color: 'var(--k-tool)', tool: t, sub: t.provenance === 'library' ? 'from shared cache' : 'as transcribed' },
         { icon: '⚒', color: 'var(--k-tool)', label: `${t.name} — ${(t.description || '').slice(0, 80)}`, sub: t.provenance === 'library' ? '⟲ cached' : '' })).join('') : '<p class="hint">No tools match the search.</p>', true)
     : noSnapshotWarning);
-  parts.push(layer('Deferred tools surfaced so far', `${deferred.length} names · cumulative at the playhead`,
+  parts.push(layer('Deferred tools surfaced so far', `${deferred.length} names · cumulative up to the selected record`,
     deferred.length ? `<div class="chiplist">${deferred.map((t) => `<span class="chip">${esc(t)}</span>`).join('')}</div>` : '<p class="hint">None at this point in the session.</p>', true));
   panel.innerHTML = parts.join('');
   wireSnapPicker(s);
@@ -2201,7 +2208,39 @@ function renderMcpTab(s, panel) {
       : `<div class="layer"><div class="body"><p class="hint">${st.mcpInstructions.length ? 'No deltas match the search.' : 'No MCP server instructions in context at this point.'}</p></div></div>`);
 }
 
-/* The Context window tab: what the model sees at the playhead, laid out like a
+function renderMemoryTab(s, panel) {
+  const mem = s.memory;
+  if (!mem) { panel.innerHTML = groundHead(s, 'memory · ground truth', 'loading…', ''); return; }
+  const qm = qmOf(s);
+  const files = (mem.files || []).filter((f) => qm(f.name, f.content));
+  const index = files.find((f) => f.name === 'MEMORY.md');
+  const entries = files.filter((f) => f.name !== 'MEMORY.md');
+  // frontmatter is metadata, not prose: surface type/description in the row
+  const meta = (content) => {
+    const m = /^---\n([\s\S]*?)\n---/.exec(content || '');
+    if (!m) return {};
+    const get = (k) => (new RegExp(`^\\\\s*${k}:\\\\s*(.+)$`, 'm').exec(m[1]) || [])[1]?.replace(/^["']|["']$/g, '').trim();
+    return { type: get('type'), description: get('description') };
+  };
+  const parts = [groundHead(s, 'memory · ground truth',
+    `${entries.length} memories${mem.slug ? ` · ${mem.slug}` : ''}`,
+    'Claude\'s persistent memory for this project — the facts it carries into every session here. MEMORY.md is the index loaded at startup; each entry is a single fact with typed frontmatter. Read-only.')];
+  if (index) {
+    parts.push(layer('MEMORY.md — the index loaded every session', `${(index.content || '').split('\n').filter((l) => l.trim()).length} lines`,
+      `<pre class="block">${esc(index.content)}</pre>`, true));
+  }
+  parts.push(layer('Memories', `${entries.length}`, entries.length
+    ? entries.map((f) => {
+        const md = meta(f.content);
+        return pvRow(
+          { kind: 'text', badge: `memory · ${md.type || 'untyped'}`, color: 'var(--k-attach)', title: f.name, sub: f.modified ? fmtTime(f.modified) : '', content: f.content },
+          { icon: '⌘', color: 'var(--k-attach)', label: md.description ? `${f.name} — ${md.description}` : f.name, sub: md.type || '' });
+      }).join('')
+    : `<p class="hint">${(mem.files || []).length ? 'No memories match the search.' : 'No memory directory for this project yet — Claude writes one when it learns something durable.'}</p>`, true));
+  panel.innerHTML = parts.join('');
+}
+
+/* The Context window tab: what the model sees at the selected record, laid out like a
    real context window — prompt head first, then the message window. */
 function renderContextTab(s, panel) {
   const rec = s.model.content[s.sel];
@@ -2218,7 +2257,7 @@ function renderContextTab(s, panel) {
     <div class="range-head">
       <div class="range-card">
         <div class="rh-row">
-          <span class="eyebrow" style="color:var(--accent)">context window · at the playhead</span>
+          <span class="eyebrow" style="color:var(--accent)">context window · at the selected record</span>
           <span class="rh-badge">record ${s.sel + 1} of ${s.model.content.length}${s.filter?.size || s.q ? ' · filtered' : ''}</span>
         </div>
         <div class="kv" style="margin:8px 0 10px">

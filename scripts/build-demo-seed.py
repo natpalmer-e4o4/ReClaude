@@ -65,6 +65,55 @@ def redact_text(t):
     return B64RUN.sub(SVG_B64, t)
 
 
+# Fabricated memories for the public demo. Generated here — never copied from the
+# author's real ~/.claude memory — so a rebuild is safe by construction.
+DEMO_MEMORY = {
+    "slug": "-Users-demo-ReceiptScanner",
+    "files": [
+        {"name": "MEMORY.md", "content": (
+            "- [Receipt Scanner operations](receipt-scanner-operations.md) — staging URL, test fixtures, the OCR retry quirk\n"
+            "- [Prefers small reviewable commits](small-commits-preference.md) — split refactors from behaviour changes\n"
+            "- [Demo Person: backend-leaning full-stack](demo-person-profile.md) — Python/Go daily, learning TypeScript\n"
+            "- [Vendor OCR API docs](vendor-ocr-reference.md) — rate limits and the sandbox key\n")},
+        {"name": "receipt-scanner-operations.md", "content": (
+            "---\nname: receipt-scanner-operations\n"
+            "description: How Receipt Scanner runs locally and the OCR retry quirk that wastes an afternoon if forgotten\n"
+            "metadata:\n  type: project\n---\n\n"
+            "Local stack runs with `make dev` (API on :8000, worker on :8001); the OCR vendor sandbox rejects the "
+            "second request in a burst with a 429 that has no Retry-After header, so the worker's backoff has to be "
+            "fixed-delay rather than header-driven.\n\n"
+            "**Why:** three separate debugging sessions have started with 'the OCR is flaky' when the cause is the "
+            "missing header.\n\n"
+            "**How to apply:** before touching retry logic, reproduce with `scripts/burst-test.sh`. Related: "
+            "[[vendor-ocr-reference]].\n")},
+        {"name": "small-commits-preference.md", "content": (
+            "---\nname: small-commits-preference\n"
+            "description: Split mechanical refactors from behaviour changes into separate commits\n"
+            "metadata:\n  type: feedback\n---\n\n"
+            "Keep pure refactors (renames, moves, formatting) in their own commit, separate from any behaviour change.\n\n"
+            "**Why:** stated during the parser rewrite — a mixed commit made it impossible to tell which hunk changed "
+            "the rounding behaviour.\n\n"
+            "**How to apply:** when a change needs both, do the refactor first, run the tests, commit, then make the "
+            "behavioural edit.\n")},
+        {"name": "demo-person-profile.md", "content": (
+            "---\nname: demo-person-profile\n"
+            "description: Backend-leaning full-stack developer; strong Python/Go, deliberately learning TypeScript\n"
+            "metadata:\n  type: user\n---\n\n"
+            "Writes Python and Go daily and is comfortable being terse there; is learning TypeScript on purpose and "
+            "wants type-level reasoning spelled out rather than assumed.\n\n"
+            "**Why:** asked for explanations of conditional types twice while shipping Go changes with no commentary.\n\n"
+            "**How to apply:** in TS, explain the type reasoning; in Python/Go, skip the tutorial.\n")},
+        {"name": "vendor-ocr-reference.md", "content": (
+            "---\nname: vendor-ocr-reference\n"
+            "description: OCR vendor docs, rate limits, and where the sandbox key lives\n"
+            "metadata:\n  type: reference\n---\n\n"
+            "API docs: https://example.com/docs/ocr/v2 — sandbox is 10 req/min, production 600 req/min. The sandbox "
+            "key is in 1Password under 'OCR sandbox', never in the repo.\n\n"
+            "Related: [[receipt-scanner-operations]].\n")},
+    ],
+}
+
+
 def main():
     if not SID:
         print('usage: build-demo-seed.py <session-id>   (redaction map: scripts/redaction.local.json)', file=sys.stderr)
@@ -115,6 +164,9 @@ def main():
         for f in agdir.iterdir():
             (out / 'files' / 'subagents' / f.name).write_text(redact_text(f.read_text()))
         print(f'subagent files: {len(list(agdir.iterdir()))}')
+
+    (out / 'memory.json').write_text(json.dumps(DEMO_MEMORY, indent=1))
+    print(f"memory: {len(DEMO_MEMORY['files'])} fabricated sample files (no real memories copied)")
 
     leftover = {}
     for p in out.rglob('*'):

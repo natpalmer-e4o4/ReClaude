@@ -1,0 +1,25 @@
+{
+ "slug": "-Users-demo-ReceiptScanner",
+ "files": [
+  {
+   "name": "MEMORY.md",
+   "content": "- [Receipt Scanner operations](receipt-scanner-operations.md) \u2014 staging URL, test fixtures, the OCR retry quirk\n- [Prefers small reviewable commits](small-commits-preference.md) \u2014 split refactors from behaviour changes\n- [Demo Person: backend-leaning full-stack](demo-person-profile.md) \u2014 Python/Go daily, learning TypeScript\n- [Vendor OCR API docs](vendor-ocr-reference.md) \u2014 rate limits and the sandbox key\n"
+  },
+  {
+   "name": "receipt-scanner-operations.md",
+   "content": "---\nname: receipt-scanner-operations\ndescription: How Receipt Scanner runs locally and the OCR retry quirk that wastes an afternoon if forgotten\nmetadata:\n  type: project\n---\n\nLocal stack runs with `make dev` (API on :8000, worker on :8001); the OCR vendor sandbox rejects the second request in a burst with a 429 that has no Retry-After header, so the worker's backoff has to be fixed-delay rather than header-driven.\n\n**Why:** three separate debugging sessions have started with 'the OCR is flaky' when the cause is the missing header.\n\n**How to apply:** before touching retry logic, reproduce with `scripts/burst-test.sh`. Related: [[vendor-ocr-reference]].\n"
+  },
+  {
+   "name": "small-commits-preference.md",
+   "content": "---\nname: small-commits-preference\ndescription: Split mechanical refactors from behaviour changes into separate commits\nmetadata:\n  type: feedback\n---\n\nKeep pure refactors (renames, moves, formatting) in their own commit, separate from any behaviour change.\n\n**Why:** stated during the parser rewrite \u2014 a mixed commit made it impossible to tell which hunk changed the rounding behaviour.\n\n**How to apply:** when a change needs both, do the refactor first, run the tests, commit, then make the behavioural edit.\n"
+  },
+  {
+   "name": "demo-person-profile.md",
+   "content": "---\nname: demo-person-profile\ndescription: Backend-leaning full-stack developer; strong Python/Go, deliberately learning TypeScript\nmetadata:\n  type: user\n---\n\nWrites Python and Go daily and is comfortable being terse there; is learning TypeScript on purpose and wants type-level reasoning spelled out rather than assumed.\n\n**Why:** asked for explanations of conditional types twice while shipping Go changes with no commentary.\n\n**How to apply:** in TS, explain the type reasoning; in Python/Go, skip the tutorial.\n"
+  },
+  {
+   "name": "vendor-ocr-reference.md",
+   "content": "---\nname: vendor-ocr-reference\ndescription: OCR vendor docs, rate limits, and where the sandbox key lives\nmetadata:\n  type: reference\n---\n\nAPI docs: https://example.com/docs/ocr/v2 \u2014 sandbox is 10 req/min, production 600 req/min. The sandbox key is in 1Password under 'OCR sandbox', never in the repo.\n\nRelated: [[receipt-scanner-operations]].\n"
+  }
+ ]
+}

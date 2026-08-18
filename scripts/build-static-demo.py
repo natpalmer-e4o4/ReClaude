@@ -99,6 +99,8 @@ def main():
             for rel in man.get('files', []):
                 write(f'data/s/{sid}/files/{rel}', get(f'/api/sessions/{sid}/files/{urllib.request.quote(rel, safe="")}', binary=True))
                 assets.append(f'data/s/{sid}/files/{rel}')
+            write(f'data/s/{sid}/memory.json', get(f'/api/sessions/{sid}/memory', binary=True))
+            assets.append(f'data/s/{sid}/memory.json')
             # no file-history backups travel with the demo seed
             write(f'data/s/{sid}/filehistory.json', json.dumps([]))
             assets.append(f'data/s/{sid}/filehistory.json')
