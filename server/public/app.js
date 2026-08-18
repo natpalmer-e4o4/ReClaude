@@ -2074,7 +2074,7 @@ function roleOf(r, kind, opts = {}) {
 
 function chipsHtml(counts, s) {
   return Object.keys(counts).map((k) =>
-    `<span class="chip chip-f${s.filter?.has(k) ? ' on' : ''}" data-f="${esc(k)}" role="button" tabindex="0" title="click to filter by ${esc(KIND_LABELS[k] || k)} · click again to remove" style="border-color:${KIND_COLORS[k] || 'var(--line)'}">${esc(KIND_LABELS[k] || k)} ${counts[k]}</span>`).join('');
+    `<span class="chip chip-f${s.filter?.has(k) ? ' on' : ''}" data-f="${esc(k)}" role="button" tabindex="0" title="click to filter by ${esc(KIND_LABELS[k] || k)} · click again to remove" style="--chip-c:${KIND_COLORS[k] || 'var(--line)'}">${esc(KIND_LABELS[k] || k)} ${counts[k]}</span>`).join('');
 }
 
 function layer(title, badge, bodyHtml, open = false, cls = '') {
