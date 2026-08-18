@@ -34,10 +34,31 @@ function readThemeColors() {
   CANVAS.gapFill = v('--c-gapfill', 'rgba(95,122,104,0.16)');
 }
 
-function applyTheme(name) {
-  document.documentElement.dataset.theme = name;
-  try { localStorage.setItem('ctx-theme', name); } catch {}
+/* Themes are declared here so the picker can render its own swatches — a
+   native <select> can't be themed, and its popup is drawn by the OS. */
+const THEMES = [
+  { id: 'forest', label: 'forest', mode: 'dark', bg: '#0f1a13', panel: '#16241b', accent: '#e9b949' },
+  { id: 'instrument', label: 'instrument', mode: 'dark', bg: '#14181f', panel: '#1b2029', accent: '#f0b429' },
+  { id: 'ember', label: 'ember', mode: 'dark', bg: '#191512', panel: '#221d19', accent: '#e0904f' },
+  { id: 'paper', label: 'paper', mode: 'light', bg: '#f4f2ec', panel: '#fbfaf6', accent: '#b07a12' },
+  { id: 'linen', label: 'linen', mode: 'light', bg: '#eef1f4', panel: '#f9fbfc', accent: '#a35a09' },
+  { id: 'sage', label: 'sage', mode: 'light', bg: '#eef2ec', panel: '#f8faf6', accent: '#8a6d1f' },
+];
+
+function themeSwatch(t) {
+  return `<span class="sw" style="background:${t.bg};border-color:${t.panel}"><i style="background:${t.accent}"></i></span>`;
+}
+
+function applyTheme(name, { persist = true } = {}) {
+  const t = THEMES.find((x) => x.id === name) || THEMES[0];
+  document.documentElement.dataset.theme = t.id;
+  if (persist) { try { localStorage.setItem('ctx-theme', t.id); } catch {} }
   readThemeColors();
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.innerHTML = `${themeSwatch(t)}<span class="theme-name">${esc(t.label)}</span><span class="caret">▾</span>`;
+  document.querySelectorAll('#themeMenu [role="option"]').forEach((o) => {
+    o.setAttribute('aria-selected', String(o.dataset.t === t.id));
+  });
   const s = state.session;
   if (s) { drawTape(s); renderRailMap(s); renderLanes(s); }
 }
@@ -45,11 +66,45 @@ function applyTheme(name) {
 function initTheme() {
   let saved = null;
   try { saved = localStorage.getItem('ctx-theme'); } catch {}
-  const sel = document.getElementById('themeSel');
-  const name = saved && sel && [...sel.options].some((o) => o.value === saved) ? saved : 'forest';
-  document.documentElement.dataset.theme = name;
-  if (sel) { sel.value = name; sel.addEventListener('change', () => applyTheme(sel.value)); }
-  readThemeColors();
+  const menu = document.getElementById('themeMenu');
+  const btn = document.getElementById('themeBtn');
+  if (!menu || !btn) { applyTheme(saved || 'forest', { persist: false }); return; }
+
+  const groups = [['dark', 'dark'], ['light', 'light']];
+  menu.innerHTML = groups.map(([mode, label]) =>
+    `<div class="theme-grp">${label}</div>` +
+    THEMES.filter((t) => t.mode === mode).map((t) =>
+      `<button type="button" role="option" data-t="${t.id}" aria-selected="false">${themeSwatch(t)}<span class="theme-name">${esc(t.label)}</span></button>`).join('')).join('');
+
+  const opts = () => [...menu.querySelectorAll('[role="option"]')];
+  const close = () => { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); };
+  const open = () => {
+    menu.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+    (opts().find((o) => o.getAttribute('aria-selected') === 'true') || opts()[0])?.focus();
+  };
+  btn.addEventListener('click', () => (menu.hidden ? open() : close()));
+  menu.addEventListener('click', (e) => {
+    const o = e.target.closest('[role="option"]');
+    if (!o) return;
+    applyTheme(o.dataset.t);
+    close();
+    btn.focus();
+  });
+  menu.addEventListener('keydown', (e) => {
+    const list = opts();
+    const i = list.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      list[(i + (e.key === 'ArrowDown' ? 1 : list.length - 1) + list.length) % list.length]?.focus();
+    } else if (e.key === 'Escape') { e.preventDefault(); close(); btn.focus(); }
+  });
+  document.addEventListener('click', (e) => {
+    if (!menu.hidden && !document.getElementById('themePick').contains(e.target)) close();
+  });
+
+  const valid = saved && THEMES.some((t) => t.id === saved);
+  applyTheme(valid ? saved : 'forest', { persist: false });
 }
 
 const KIND_COLORS = {
