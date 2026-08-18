@@ -64,7 +64,8 @@ fs.mkdirSync(OUT, { recursive: true });
 
 // find a session
 const sess = await (await fetch(`${BASE}/api/sessions`)).json();
-const sid = (sess.sessions || sess)[0].id;
+const s0 = (sess.sessions || sess)[0];
+const sid = s0.sessionId || s0.id;
 await send('Page.navigate', { url: `${BASE}/#/s/${sid}` });
 
 for (let i = 0; i < 80; i++) {
