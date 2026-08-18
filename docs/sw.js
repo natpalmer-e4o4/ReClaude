@@ -1,5 +1,5 @@
 /* Context Explorer static demo — precache everything, serve cache-first. */
-const CACHE = 'ctx-explorer-1787091670';
+const CACHE = 'ctx-explorer-1787092083';
 const ASSETS = [
 "index.html",
 "app.css",
