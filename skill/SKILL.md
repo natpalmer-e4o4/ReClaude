@@ -19,7 +19,7 @@ curl -sf http://127.0.0.1:7331/api/health
 ```
 
 If this fails, tell the user to start it (`docker compose up -d` in
-`~/ContextExplorer`) and stop here.
+`~/ReClaude`) and stop here.
 
 ## Step 2 — locate the session
 
