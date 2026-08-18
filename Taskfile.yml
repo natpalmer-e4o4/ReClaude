@@ -1,4 +1,4 @@
-# Common operations for Context Explorer. Run `task --list` for this menu.
+# Common operations for ReClaude. Run `task --list` for this menu.
 version: '3'
 
 tasks:

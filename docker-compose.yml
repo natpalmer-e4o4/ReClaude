@@ -1,7 +1,9 @@
+name: reclaude
+
 services:
-  context-explorer:
+  reclaude:
     build: .
-    container_name: context-explorer
+    container_name: reclaude
     # Loopback only: transcripts contain real project data and secrets.
     ports:
       - "127.0.0.1:7331:7331"
@@ -13,10 +15,13 @@ services:
       # in-memory redacted build-session demo; override with: DEMO_SEED=1 task up
       DEMO_SEED: "${DEMO_SEED:-0}"
     volumes:
-      - context-explorer-data:/data
+      - reclaude-data:/data
       - ${HOME}/.claude/projects:/host-projects:ro
       - ${HOME}/.claude/file-history:/host-file-history:ro
     restart: unless-stopped
 
 volumes:
-  context-explorer-data:
+  reclaude-data:
+    # Pinned to the pre-rename physical volume: the compose project name no longer
+    # derives from the folder, so renaming the directory cannot orphan this data.
+    name: contextexplorer_context-explorer-data

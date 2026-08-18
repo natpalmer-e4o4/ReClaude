@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Assemble a Context Explorer snapshot from a staging dir and POST it.
+"""Assemble a ReClaude snapshot from a staging dir and POST it.
 
 Usage: assemble.py <staging-dir> <session-id> [--server http://127.0.0.1:7331]
 

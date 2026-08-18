@@ -1,4 +1,4 @@
-/* Context Explorer SPA — parses raw session JSONL client-side and reconstructs
+/* ReClaude SPA — parses raw session JSONL client-side and reconstructs
    the effective context window at any selected record.
    Reconstruction rules (derived from real Claude Code transcripts):
    - records link via parentUuid: context-at-point = parent-chain walk to root
@@ -54,7 +54,7 @@ function themeSwatch(t) {
 function applyTheme(name, { persist = true } = {}) {
   const t = THEMES.find((x) => x.id === name) || THEMES[0];
   document.documentElement.dataset.theme = t.id;
-  if (persist) { try { localStorage.setItem('ctx-theme', t.id); } catch {} }
+  if (persist) { try { localStorage.setItem('reclaude-theme', t.id); } catch {} }
   readThemeColors();
   const btn = document.getElementById('themeBtn');
   if (btn) btn.innerHTML = `${themeSwatch(t)}<span class="theme-name">${esc(t.label)}</span><span class="caret">▾</span>`;
@@ -67,7 +67,8 @@ function applyTheme(name, { persist = true } = {}) {
 
 function initTheme() {
   let saved = null;
-  try { saved = localStorage.getItem('ctx-theme'); } catch {}
+  // 'ctx-theme' is the pre-rename key, read as a fallback so a returning user keeps their theme.
+  try { saved = localStorage.getItem('reclaude-theme') || localStorage.getItem('ctx-theme'); } catch {}
   const menu = document.getElementById('themeMenu');
   const btn = document.getElementById('themeBtn');
   if (!menu || !btn) { applyTheme(saved || 'forest', { persist: false }); return; }
@@ -607,7 +608,7 @@ async function staticSearch(sessions, q) {
 }
 
 async function homeView() {
-  document.title = 'Context Explorer';
+  document.title = 'ReClaude';
   document.body.classList.remove('session-mode');
   const sessions = await jget(API.sessions()); // sorted by last activity, newest first
   const byRoot = {};
@@ -617,7 +618,7 @@ async function homeView() {
 
   $view.innerHTML = `
     <header class="masthead">
-      <h1>Context <span class="dim">Explorer</span></h1>
+      <h1><span class="dim">Re</span>Claude</h1>
       <span class="sub">flight recorder for the Claude Code context window</span>
     </header>
     <div class="searchbar">
@@ -709,7 +710,7 @@ async function sessionView(id) {
     try { snapshots.push({ name, data: await jget(API.snapshot(id, name)) }); } catch {}
   }
   const title = manifest.customTitle || manifest.title || id;
-  document.title = `${title} — Context Explorer`;
+  document.title = `${title} — ReClaude`;
 
   JSON_STORE = [];
   const s = {

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a static, installable (PWA) copy of Context Explorer into docs/.
+"""Build a static, installable (PWA) copy of ReClaude into docs/.
 
 Usage: python3 scripts/build-static-demo.py [--port 7350]
 
@@ -122,7 +122,7 @@ def main():
                                       'type': 'image/png', 'purpose': 'any maskable'})
 
         write('manifest.webmanifest', json.dumps({
-            'name': 'Context Explorer', 'short_name': 'Context',
+            'name': 'ReClaude', 'short_name': 'ReClaude',
             'description': "A flight recorder for the Claude Code context window.",
             'start_url': '.', 'scope': '.', 'display': 'standalone',
             'background_color': '#14181f', 'theme_color': '#14181f',
@@ -133,8 +133,8 @@ def main():
         shell += [str(p.relative_to(OUT)) for p in (OUT / 'vendor').rglob('*') if p.is_file()]
         shell += [i['src'] for i in icons]
         version = str(int((PUB / 'app.js').stat().st_mtime))
-        write('sw.js', f'''/* Context Explorer static demo — precache everything, serve cache-first. */
-const CACHE = 'ctx-explorer-{version}';
+        write('sw.js', f'''/* ReClaude static demo — precache everything, serve cache-first. */
+const CACHE = 'reclaude-{version}';
 const ASSETS = {json.dumps(shell + assets, indent=0)};
 self.addEventListener('install', (e) => {{
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));

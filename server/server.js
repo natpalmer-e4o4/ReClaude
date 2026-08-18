@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Context Explorer — zero-dependency import server + SPA host.
+ * ReClaude — zero-dependency import server + SPA host.
  *
  * Storage layout (DATA_DIR):
  *   sessions/<sessionId>/transcript.jsonl        raw session JSONL, verbatim
@@ -633,5 +633,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Context Explorer listening on http://${HOST}:${PORT} (data: ${DATA_DIR})`);
+  console.log(`ReClaude listening on http://${HOST}:${PORT} (data: ${DATA_DIR})`);
 });

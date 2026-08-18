@@ -5,3 +5,4 @@ scripts/node_modules/
 .claude/
 dist/
 scripts/redaction.local.json
+__pycache__/

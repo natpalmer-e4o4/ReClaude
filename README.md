@@ -1,4 +1,4 @@
-# Context Explorer
+# ReClaude
 
 **A flight recorder for the Claude Code context window.**
 
@@ -8,7 +8,7 @@ timeline. Sessions are discovered from `~/.claude` automatically; the parts that
 exist *only* inside the model's context are captured by invoking the
 `context-export` skill from inside a live session.
 
-### 🔎 [Live demo →](https://natpalmer-e4o4.github.io/ContextExplorer/)
+### 🔎 [Live demo →](https://natpalmer-e4o4.github.io/ReClaude/)
 
 A static, installable build carrying the redacted session in which this tool was
 built — so you can explore the construction of the viewer *in* the viewer. No

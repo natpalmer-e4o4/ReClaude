@@ -1,11 +1,11 @@
 ---
 name: context-export
-description: Export the current Claude Code session to the local Context Explorer container — transcript, subagent files, and an as-transcribed snapshot of the in-context system prompt and tool definitions. Use when the user runs /context-export or asks to export/inspect this session's context.
+description: Export the current Claude Code session to the local ReClaude container — transcript, subagent files, and an as-transcribed snapshot of the in-context system prompt and tool definitions. Use when the user runs /context-export or asks to export/inspect this session's context.
 ---
 
 # Context Export
 
-Export this live session to the Context Explorer viewer at `http://127.0.0.1:7331`.
+Export this live session to the ReClaude viewer at `http://127.0.0.1:7331`.
 
 The transcript JSONL exists on disk, but the **system prompt and tool schemas exist
 only inside your context window** — you are the only sensor that can capture them.

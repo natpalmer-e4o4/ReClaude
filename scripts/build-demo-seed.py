@@ -34,7 +34,7 @@ if CONF_PATH.is_file():
     _conf = json.loads(CONF_PATH.read_text())
 else:
     print(f'NOTE: {CONF_PATH.name} not found — using the neutral example map', file=sys.stderr)
-    _conf = {'slug': '-Users-you-ContextExplorer',
+    _conf = {'slug': '-Users-you-ReClaude',
              'replacements': [['example-user', 'demouser']],
              'sweep': ['example-user']}
 SLUG_CONF = _conf.get('slug')
@@ -144,12 +144,12 @@ def main():
         if found:
             name, raw = found[-1].name, found[-1].read_text()
     if raw is None:  # fall back to a running docker container's volume
-        ls = subprocess.run(['docker', 'exec', 'context-explorer', 'sh', '-c',
+        ls = subprocess.run(['docker', 'exec', 'reclaude', 'sh', '-c',
                              f'ls /data/sessions/{SID}/snapshots'], capture_output=True, text=True)
         snaps = [x for x in ls.stdout.split() if x.endswith('.json')]
         if snaps:
             name = snaps[-1]
-            raw = subprocess.run(['docker', 'exec', 'context-explorer', 'cat',
+            raw = subprocess.run(['docker', 'exec', 'reclaude', 'cat',
                                   f'/data/sessions/{SID}/snapshots/{name}'], capture_output=True, text=True).stdout
     if raw:
         snap = redact_text(raw)
