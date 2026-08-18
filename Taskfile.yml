@@ -1,0 +1,62 @@
+# Common operations for Context Explorer. Run `task --list` for this menu.
+version: '3'
+
+tasks:
+  serve:
+    desc: Run the server natively, no docker (DEMO_SEED=1 task serve → include demo; ctrl-c stops)
+    cmds: [node server/server.js]
+
+  up:
+    desc: "Optional docker route: build and start the container (DEMO_SEED=1 task up → include demo)"
+    cmds: [docker compose up -d --build]
+
+  down:
+    desc: Stop the container (data volume is preserved)
+    cmds: [docker compose down]
+
+  restart:
+    desc: Restart without rebuilding
+    cmds: [docker compose restart]
+
+  logs:
+    desc: Follow container logs
+    cmds: [docker compose logs -f --tail=100]
+
+  health:
+    desc: Server health + file-history mirror stats
+    cmds: [curl -s http://127.0.0.1:7331/api/health | python3 -m json.tool]
+
+  open:
+    desc: Open the viewer in the default browser
+    cmds: [open http://127.0.0.1:7331]
+
+  skill:
+    desc: Install/sync the context-export skill into ~/.claude/skills
+    cmds: [cp -R skill/ ~/.claude/skills/context-export/]
+
+  import:
+    desc: "Import a session transcript by id: task import -- <session-id>"
+    cmds:
+      - |
+        SID="{{.CLI_ARGS}}"
+        [ -n "$SID" ] || { echo "usage: task import -- <session-id>"; exit 1; }
+        F=$(ls ~/.claude/projects/*/"$SID".jsonl 2>/dev/null | head -1)
+        [ -n "$F" ] || { echo "no transcript found for $SID"; exit 1; }
+        SLUG=$(basename "$(dirname "$F")")
+        curl -sf --data-binary @"$F" "http://127.0.0.1:7331/api/import/transcript?session=$SID&project=$SLUG" | python3 -c "import json,sys; d=json.load(sys.stdin); print('imported:', d['lineCount'], 'records —', d.get('title') or d['sessionId'])"
+
+  seed:
+    desc: Rebuild the redacted demo seed from the live build-session transcript (then restart the server, or `task up` if using docker)
+    cmds:
+      - python3 scripts/build-demo-seed.py
+
+  demo:
+    desc: Start with the in-memory demo session enabled
+    env: { DEMO_SEED: "1" }
+    cmds: [docker compose up -d --build]
+
+  test:
+    desc: Run the DOM regression test against the bundled demo seed (isolated instance, no docker needed)
+    cmds:
+      - '[ -d scripts/node_modules/jsdom ] || npm install --prefix scripts --silent'
+      - node scripts/test-hermetic.mjs

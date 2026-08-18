@@ -1,0 +1,7 @@
+data/
+scripts/node_modules/
+*.log
+.DS_Store
+.claude/
+dist/
+scripts/redaction.local.json

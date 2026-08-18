@@ -1,0 +1,22 @@
+services:
+  context-explorer:
+    build: .
+    container_name: context-explorer
+    # Loopback only: transcripts contain real project data and secrets.
+    ports:
+      - "127.0.0.1:7331:7331"
+    environment:
+      HOST_PROJECTS: /host-projects
+      FILE_HISTORY: /host-file-history
+      # cap on the mirrored backup cache; oldest files evicted first. 0/unset = unlimited.
+      FH_CACHE_MAX_MB: "10240"
+      # in-memory redacted build-session demo; override with: DEMO_SEED=1 task up
+      DEMO_SEED: "${DEMO_SEED:-0}"
+    volumes:
+      - context-explorer-data:/data
+      - ${HOME}/.claude/projects:/host-projects:ro
+      - ${HOME}/.claude/file-history:/host-file-history:ro
+    restart: unless-stopped
+
+volumes:
+  context-explorer-data:
