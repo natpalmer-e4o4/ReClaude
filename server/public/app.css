@@ -436,10 +436,14 @@ body.session-mode .preview-pane { min-height: 0; }
 /* === interaction: canvas & drag state (WS-A) === */
 /* A zoom drag latches one pointer for the whole gesture — the canvas keeps its
    resting crosshair, but while the window-level handlers own the drag the
-   cursor must not flicker as it crosses other elements. */
+   cursor must not flicker as it crosses other elements.
+   The universal selector restyles the whole document, so the class is only
+   latched once a gesture is real: a plain click on the tape must not pay for it. */
 body.dragging, body.dragging * { cursor: ew-resize !important; }
 body.dragging { user-select: none; }
-.tape-wrap { user-select: none; } /* a drag can never smear a selection across readout/legend */
+/* the readout's token counts and timestamps stay selectable: both canvases
+   preventDefault on mousedown, so a drag can never start a selection anyway,
+   and body.dragging covers the gesture window regardless */
 .rail-map { transition: box-shadow .12s; }
 .rail-map.scrubbing { box-shadow: inset 0 0 0 1px rgba(240, 180, 41, .35); }
 

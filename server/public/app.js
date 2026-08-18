@@ -1304,7 +1304,6 @@ function initTape(s) {
 
   cv.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || inBand(e)) return;
-    document.body.classList.add('dragging'); // latch ew-resize for the whole zoom drag
     downX = pxOf(e);
     dragging = false;
     e.preventDefault();
@@ -1320,7 +1319,13 @@ function initTape(s) {
     }
     if (downX == null) return;
     const px = pxOf(e);
-    if (!dragging && Math.abs(px - downX) > 4) { dragging = true; tip.style.display = 'none'; }
+    if (!dragging && Math.abs(px - downX) > 4) {
+      dragging = true;
+      tip.style.display = 'none';
+      // latch ew-resize only once the gesture is real — body.dragging * restyles
+      // the entire document, and a plain click on the tape is the common case
+      document.body.classList.add('dragging');
+    }
     if (dragging) { s.dragSel = [downX, px]; drawTape(s); }
   };
   const onWinUp = (e) => {
@@ -2058,7 +2063,11 @@ function renderTimelineTab(s, panel) {
     setView(s, nearest - span / 2, nearest + span / 2);
     select(s, nearest, { scrollRail: true });
     // select() has re-rendered the panel; flag where the jump landed
-    const landed = document.getElementById('panel').querySelector('.msg.focus');
+    // reduced motion kills the keyframes, so animationend would never fire and
+    // the class would stick — skip it entirely; the amber .focus bar already
+    // says where the jump landed
+    const landed = matchMedia('(prefers-reduced-motion: reduce)').matches
+      ? null : document.getElementById('panel').querySelector('.msg.focus');
     if (landed) {
       landed.classList.add('arrived');
       landed.addEventListener('animationend', () => landed.classList.remove('arrived'), { once: true });
