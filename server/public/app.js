@@ -36,17 +36,19 @@ function readThemeColors() {
 
 /* Themes are declared here so the picker can render its own swatches — a
    native <select> can't be themed, and its popup is drawn by the OS. */
+// `dot` is what the theme reads as at a glance — its character, not always its
+// accent (forest is green velvet even though its accent is brass)
 const THEMES = [
-  { id: 'forest', label: 'forest', mode: 'dark', bg: '#0f1a13', panel: '#16241b', accent: '#e9b949' },
-  { id: 'instrument', label: 'instrument', mode: 'dark', bg: '#14181f', panel: '#1b2029', accent: '#f0b429' },
-  { id: 'ember', label: 'ember', mode: 'dark', bg: '#191512', panel: '#221d19', accent: '#e0904f' },
-  { id: 'paper', label: 'paper', mode: 'light', bg: '#f4f2ec', panel: '#fbfaf6', accent: '#b07a12' },
-  { id: 'linen', label: 'linen', mode: 'light', bg: '#eef1f4', panel: '#f9fbfc', accent: '#a35a09' },
-  { id: 'sage', label: 'sage', mode: 'light', bg: '#eef2ec', panel: '#f8faf6', accent: '#8a6d1f' },
+  { id: 'forest', label: 'forest', mode: 'dark', bg: '#0f1a13', panel: '#16241b', dot: '#27a578' },
+  { id: 'instrument', label: 'instrument', mode: 'dark', bg: '#14181f', panel: '#1b2029', dot: '#4a8fdd' },
+  { id: 'ember', label: 'ember', mode: 'dark', bg: '#191512', panel: '#221d19', dot: '#e0904f' },
+  { id: 'paper', label: 'paper', mode: 'light', bg: '#f4f2ec', panel: '#d9d5ca', dot: '#b07a12' },
+  { id: 'linen', label: 'linen', mode: 'light', bg: '#eef1f4', panel: '#ccd4dc', dot: '#3574c4' },
+  { id: 'sage', label: 'sage', mode: 'light', bg: '#eef2ec', panel: '#cbd6c5', dot: '#1a7d5e' },
 ];
 
 function themeSwatch(t) {
-  return `<span class="sw" style="background:${t.bg};border-color:${t.panel}"><i style="background:${t.accent}"></i></span>`;
+  return `<span class="sw" style="background:${t.bg};border-color:${t.panel}"><i style="background:${t.dot}"></i></span>`;
 }
 
 function applyTheme(name, { persist = true } = {}) {
@@ -1864,9 +1866,9 @@ function enterAgentFocus(s, a) {
   const bar = document.getElementById('agentFocusBar');
   bar.style.display = '';
   bar.innerHTML = `
+    <button class="mini-btn" id="afbBack" type="button">⟵ back to session (Esc)</button>
     <span class="afb-label">⧉ sub-agent · <b>${esc(a.meta.agentType || 'agent')}</b> — ${esc(a.meta.description || a.id)} · ${a.model.content.length} records · ${esc(fmtDur(a.t1 - a.t0))} · depth ${a.meta.spawnDepth ?? '?'}</span>
-    ${spawnIdx >= 0 ? `<button class="mini-btn" id="afbSpawn" type="button">↧ spawn point</button>` : ''}
-    <button class="mini-btn" id="afbBack" type="button">⟵ back to session (Esc)</button>`;
+    ${spawnIdx >= 0 ? `<button class="mini-btn" id="afbSpawn" type="button">↧ spawn point</button>` : ''}`;
   document.getElementById('afbBack').addEventListener('click', () => exitAgentFocus(s));
   const sp = document.getElementById('afbSpawn');
   if (sp) sp.addEventListener('click', () => { exitAgentFocus(s); select(s, spawnIdx, { scrollRail: true }); });
