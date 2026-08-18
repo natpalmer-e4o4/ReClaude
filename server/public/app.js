@@ -876,6 +876,7 @@ async function sessionView(id) {
     s.fhFiles = Array.isArray(list) ? new Set(list) : null;
     if (state.session === s && s.tab === 'files') renderPanel(s);
   }).catch(() => { s.fhFiles = null; });
+  initStickyHeads(s);
   window.addEventListener('resize', () => drawTape(s), { passive: true });
 }
 
@@ -1895,10 +1896,22 @@ function renderTabs(s) {
     ['snapshot', `Snapshot${s.snapshots.length ? ` (${s.snapshots.length})` : ''}`],
     ['files', `Files (${(s.manifest.files || []).length})`],
   ];
-  document.getElementById('tabs').innerHTML = tabs.map(([k, label]) =>
-    `<button data-tab="${k}" class="${s.tab === k ? 'on' : ''}">${label}</button>`).join('');
-  document.querySelectorAll('#tabs button').forEach((b) =>
-    b.addEventListener('click', () => { s.tab = b.dataset.tab; renderTabs(s); renderPanel(s); }));
+  // build once, then update in place: select() calls renderTabs on every
+  // selection, and rebuilding the nodes both restarts the pill transition and
+  // re-binds four click listeners thousands of times a session
+  const tabsEl = document.getElementById('tabs');
+  let btns = [...tabsEl.querySelectorAll('button')];
+  if (btns.length !== tabs.length) {
+    tabsEl.innerHTML = tabs.map(([k]) => `<button data-tab="${k}"></button>`).join('');
+    btns = [...tabsEl.querySelectorAll('button')];
+    btns.forEach((b) => b.addEventListener('click', () => { s.tab = b.dataset.tab; renderTabs(s); renderPanel(s); }));
+  }
+  btns.forEach((b, i) => {
+    const [k, label] = tabs[i];
+    if (b.dataset.tab !== k) b.dataset.tab = k;
+    if (b.textContent !== label) b.textContent = label; // labels carry live counts
+    b.classList.toggle('on', s.tab === k);
+  });
   // sort order and find-in-view only make sense on the event-list tabs
   const listy = s.tab === 'timeline' || s.tab === 'context';
   const sortBtn = document.getElementById('sortToggle');
@@ -1929,6 +1942,41 @@ function layer(title, badge, bodyHtml, open = false, cls = '') {
     <summary><span class="eyebrow">${title}</span><span class="badge">${badge}</span></summary>
     <div class="body">${bodyHtml}</div>
   </details>`;
+}
+
+/* Scroll a panel row into view without the long useless ride: smooth only when
+   the trip is short enough to read as motion, plain jump otherwise. The global
+   prefers-reduced-motion transition kill in the stylesheet does not cover
+   scroll behaviour, so check it here. */
+function settleIntoView(el, opts = {}) {
+  if (!el?.scrollIntoView) return;
+  let behavior = 'auto';
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    const box = el.closest('.ctx-panel');
+    const h = box?.clientHeight || 0;
+    if (h && box.scrollHeight > box.clientHeight + 1) {
+      const delta = Math.abs(el.getBoundingClientRect().top - box.getBoundingClientRect().top - h / 2);
+      if (delta < h * 1.5) behavior = 'smooth';
+    }
+  }
+  el.scrollIntoView({ ...opts, behavior });
+}
+
+/* Sticky heads earn their shadow: flat while the pane sits at the top, lifted
+   the moment content slides under them. One class toggle per frame, per pane —
+   nothing here touches the rows themselves. */
+function initStickyHeads(s) {
+  const watch = (scroller, target, cls) => {
+    if (!scroller || !target) return;
+    let t = 0;
+    scroller.addEventListener('scroll', () => {
+      if (t) return;
+      t = requestAnimationFrame(() => { t = 0; target.classList.toggle(cls, scroller.scrollTop > 2); });
+    }, { passive: true });
+  };
+  const panel = document.querySelector('.ctx-panel');
+  watch(panel, panel, 'stuck');
+  watch(document.getElementById('rail'), document.getElementById('railBox'), 'scrolled');
 }
 
 function renderPanel(s) {
@@ -2009,9 +2057,15 @@ function renderTimelineTab(s, panel) {
     const span = Math.max(4, hi - lo);
     setView(s, nearest - span / 2, nearest + span / 2);
     select(s, nearest, { scrollRail: true });
+    // select() has re-rendered the panel; flag where the jump landed
+    const landed = document.getElementById('panel').querySelector('.msg.focus');
+    if (landed) {
+      landed.classList.add('arrived');
+      landed.addEventListener('animationend', () => landed.classList.remove('arrived'), { once: true });
+    }
   });
   const focusEl = panel.querySelector('.msg.focus');
-  if (focusEl) focusEl.scrollIntoView?.({ block: 'center' });
+  if (focusEl) settleIntoView(focusEl, { block: 'center' });
 }
 
 function buildSystemLayers(s) {
@@ -2104,7 +2158,7 @@ function renderContextTab(s, panel) {
   const snapSelEl = document.getElementById('snapSel');
   if (snapSelEl) snapSelEl.addEventListener('change', (e) => { s.snapIdx = +e.target.value; select(s, s.sel, { keepSnap: true }); });
   const focusEl = panel.querySelector('.msg.focus');
-  if (focusEl) focusEl.scrollIntoView?.({ block: 'center' });
+  if (focusEl) settleIntoView(focusEl, { block: 'center' });
 }
 
 function renderMsg(r, focusUuid, deltas, opts = {}) {

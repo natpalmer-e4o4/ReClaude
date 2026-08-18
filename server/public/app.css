@@ -163,7 +163,7 @@ canvas.tape { width: 100%; height: 106px; display: block; cursor: crosshair; bor
 .rail.collapsed .rail-map, .rail.collapsed .rail-search, .rail.collapsed .rail-list, .rail.collapsed .rail-head label, .rail.collapsed #railCount { display: none; }
 .rail.collapsed .rail-head { border-bottom: none; justify-content: center; padding: 9px 4px; }
 .session-body.rail-collapsed { grid-template-columns: 46px minmax(0, 1fr) minmax(0, 1fr); }
-.rail-head { display:flex; justify-content: space-between; align-items:center; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+.rail-head { display:flex; justify-content: space-between; align-items:center; padding: 9px 12px; border-bottom: 1px solid var(--line); transition: box-shadow .18s ease; }
 .rail-head label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; cursor: pointer; }
 .rail-list { max-height: calc(100vh - 220px); overflow-y: auto; overscroll-behavior: contain; }
 .rec {
@@ -238,7 +238,10 @@ pre.block {
 .chip.new { border-color: var(--k-attach); color: var(--k-attach); }
 
 /* message thread inside context tab */
-.msg { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: var(--panel); }
+.msg {
+  border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: var(--panel);
+  transition: box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
+}
 .msg > summary { list-style: none; cursor: pointer; padding: 7px 12px; display: flex; gap: 10px; align-items: baseline; font-family: var(--mono); font-size: 12.5px; }
 .msg > summary::-webkit-details-marker { display: none; }
 .msg > summary .role { font-weight: 700; font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
@@ -257,7 +260,9 @@ pre.block {
 
 .ctx-group { margin-bottom: 22px; }
 .group-head { margin: 2px 2px 8px; color: var(--accent); }
-.msg.focus { border-left: 3px solid var(--accent); border-color: var(--accent); }
+/* inset rather than a real 3px border: a border would jog the row's text 2px
+   sideways the instant it is focused (same idiom as .pair-hl below) */
+.msg.focus { box-shadow: inset 3px 0 0 var(--accent); border-color: var(--accent); }
 .msg.focus > summary { background: rgba(240, 180, 41, 0.06); }
 
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -297,11 +302,14 @@ body.session-mode .ctx-panel .layer > summary { background: var(--panel); }
 body.session-mode .ctx-panel .group-head { background: var(--bg); padding-bottom: 5px; }
 body.session-mode .ctx-panel .snap-strip { background: var(--bg); padding: 2px 0 6px; }
 
+/* the head's shadow is evidence of depth, not decoration: flush at rest, it
+   fades up once content starts sliding under it (see .ctx-panel.stuck below) */
 body.session-mode .ctx-panel .panel-head {
   position: sticky; top: 0; z-index: 5;
   background: var(--bg);
   padding: 2px 0 10px;
-  box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid transparent;
+  transition: box-shadow .18s ease, border-color .18s ease;
 }
 
 @media (max-width: 1100px) {
@@ -503,3 +511,50 @@ body.dragging { user-select: none; }
   outline: none; border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(240,180,41,.10);
 }
+
+/* === interaction: panel & headers (WS-C) === */
+
+/* focus + pair highlight on the same row: amber bar first, violet beside it,
+   so neither signal is swallowed by the other's inset shadow */
+.msg.focus.pair-hl { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool); }
+
+/* the escape hatch announces where it dropped you; the fade ends on the row's
+   resting colour rather than transparent, because an animation replaces the
+   painted background outright and ending clear would flash the pane through */
+@keyframes row-arrive { from { background: rgba(240, 180, 41, 0.16); } to { background: var(--panel); } }
+.msg.arrived { animation: row-arrive .38s ease-out; }
+
+/* sticky heads: shadow only once content is actually sliding underneath */
+body.session-mode .ctx-panel.stuck .panel-head {
+  box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.6);
+  border-bottom-color: var(--line);
+}
+.rail.scrolled .rail-head { box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.6); }
+
+/* second-level heads inherit the pane's signal; borders are reserved
+   transparent up front so colouring them in never reflows the list */
+body.session-mode .ctx-panel .group-head,
+body.session-mode .ctx-panel .snap-strip,
+body.session-mode .ctx-panel .layer > summary {
+  border-bottom: 1px solid transparent;
+  transition: border-color .18s ease;
+}
+body.session-mode .ctx-panel.stuck .group-head,
+body.session-mode .ctx-panel.stuck .snap-strip,
+body.session-mode .ctx-panel.stuck .layer > summary { border-bottom-color: var(--line); }
+/* an open layer already draws a divider on its body: hand that line to the
+   pinned summary instead of stacking a second one under it */
+body.session-mode .ctx-panel.stuck .layer[open] > .body { border-top-color: transparent; }
+
+@media (prefers-reduced-motion: reduce) { .msg.arrived { animation: none; } }
+
+/* === integration guard: WS-B press/focus x WS-C focus row === */
+/* WS-B drafts the amber tick at 40%/55% under press and keyboard focus, in the
+   same inset channel WS-C now uses for the COMMITTED focus row — and .msg.mrow
+   outranks .msg.focus. Restore full accent on the row that already owns the
+   bar, keeping WS-B's focus bloom. Mirrors WS-B's own .rec.sel guard in the
+   rail: travel is the touch signal, amber stays the state signal. */
+.msg.focus:active { box-shadow: inset 3px 0 0 var(--accent); }
+.msg.focus:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 0 0 0 1px rgba(240,180,41,.20); }
+.msg.focus.pair-hl:active { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool); }
+.msg.focus.pair-hl:focus-visible { box-shadow: inset 3px 0 0 var(--accent), inset 6px 0 0 var(--k-tool), inset 0 0 0 1px rgba(240,180,41,.20); }
