@@ -64,3 +64,70 @@ tasks:
     cmds:
       - '[ -d scripts/node_modules/jsdom ] || npm install --prefix scripts --silent'
       - node scripts/test-hermetic.mjs
+
+  # ---------- release loop ----------
+  # `task release -- 0.1.2` is the only command you run by hand; pushing the tag
+  # triggers .github/workflows/release.yml, which calls the tasks below.
+
+  version:
+    desc: Print the current version
+    cmds:
+      - node -p "require('./package.json').version"
+
+  release:
+    desc: "Cut a release: task release -- <version> (bumps, rebuilds docs, tags, pushes)"
+    cmds:
+      - |
+        V="{{.CLI_ARGS}}"
+        [ -n "$V" ] || { echo "usage: task release -- <version>   e.g. 0.1.2"; exit 1; }
+        echo "$V" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "version must be x.y.z"; exit 1; }
+        [ -z "$(git status --porcelain)" ] || { echo "working tree is dirty; commit first"; exit 1; }
+        node -e "const f='package.json',p=require('./'+f);p.version='$V';require('fs').writeFileSync(f,JSON.stringify(p,null,2)+'\n')"
+        task static
+        git add -A
+        git commit -q -m "Release v$V"
+        git tag "v$V"
+        git push -q origin main --tags
+        echo "pushed v$V — the release workflow takes it from here"
+
+  release:sha:
+    desc: "Checksum of a release tarball: task release:sha -- <tag>"
+    cmds:
+      - |
+        TAG="{{.CLI_ARGS}}"
+        [ -n "$TAG" ] || { echo "usage: task release:sha -- <tag>   e.g. v0.1.2"; exit 1; }
+        curl -fsSL "https://github.com/natpalmer-e4o4/ReClaude/archive/refs/tags/$TAG.tar.gz" | shasum -a 256 | cut -d' ' -f1
+
+  release:formula:
+    desc: "Rewrite packaging/homebrew/reclaude.rb for a tag: task release:formula -- <tag>"
+    cmds:
+      - |
+        TAG="{{.CLI_ARGS}}"
+        [ -n "$TAG" ] || { echo "usage: task release:formula -- <tag>"; exit 1; }
+        SHA=$(task release:sha -- "$TAG")
+        [ -n "$SHA" ] || { echo "could not checksum $TAG — is the release published?"; exit 1; }
+        F=packaging/homebrew/reclaude.rb
+        sed -i.bak -E "s|/tags/v[0-9]+\.[0-9]+\.[0-9]+\.tar\.gz|/tags/$TAG.tar.gz|; s|sha256 \"[0-9a-f]{64}\"|sha256 \"$SHA\"|" "$F"
+        rm -f "$F.bak"
+        ruby -c "$F" >/dev/null
+        echo "formula now points at $TAG ($SHA)"
+
+  release:tap:
+    desc: "Publish the formula to the homebrew tap: task release:tap -- <tag>"
+    cmds:
+      - |
+        TAG="{{.CLI_ARGS}}"
+        [ -n "$TAG" ] || { echo "usage: task release:tap -- <tag>"; exit 1; }
+        task release:formula -- "$TAG"
+        TMP=$(mktemp -d)
+        git clone -q "https://${TAP_TOKEN:-$GITHUB_TOKEN}@github.com/natpalmer-e4o4/homebrew-tools.git" "$TMP" 2>/dev/null \
+          || git clone -q https://github.com/natpalmer-e4o4/homebrew-tools.git "$TMP"
+        mkdir -p "$TMP/Formula"
+        cp packaging/homebrew/reclaude.rb "$TMP/Formula/reclaude.rb"
+        cd "$TMP"
+        git add Formula/reclaude.rb
+        git -c user.name="${GIT_AUTHOR_NAME:-natpalmer-e4o4}" \
+            -c user.email="${GIT_AUTHOR_EMAIL:-natpalmer-e4o4@users.noreply.github.com}" \
+            commit -qm "reclaude ${TAG#v}" || { echo "formula already current"; exit 0; }
+        git push -q origin HEAD
+        echo "tap updated to $TAG"

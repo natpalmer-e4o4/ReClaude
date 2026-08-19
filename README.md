@@ -151,6 +151,35 @@ Storage: `sessions/<id>/transcript.jsonl` verbatim, plus computed `meta.json`,
 `snapshots/`, and `files/`. Reconstruction happens in the browser, so re-imports
 and viewer upgrades cost nothing.
 
+## Releasing
+
+One command:
+
+```bash
+task release -- 0.1.2
+```
+
+It bumps `package.json`, rebuilds `docs/`, commits, tags, and pushes. Pushing the
+tag runs `.github/workflows/release.yml`, which calls the same task targets you
+would run by hand — it checks the tag against `package.json`, runs `task test`,
+publishes the GitHub release, then bumps the Homebrew tap and npm.
+
+Two repository secrets gate the last two steps. Without them the workflow still
+succeeds and warns:
+
+| Secret | Enables | Needs |
+|---|---|---|
+| `TAP_TOKEN` | pushing the formula to `homebrew-tools` | a PAT with `repo` scope on that repo (`GITHUB_TOKEN` cannot reach another repository) |
+| `NPM_TOKEN` | `npm publish` | an npm automation token |
+
+```bash
+gh secret set TAP_TOKEN   # paste the PAT
+gh secret set NPM_TOKEN   # paste the npm token
+```
+
+Each target also works alone: `task release:sha -- v0.1.2`,
+`task release:formula -- v0.1.2`, `task release:tap -- v0.1.2`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
