@@ -601,7 +601,7 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, { sessionId: m[1], ...host.meta, source: 'disk', snapshots: [], files });
       }
       if (rest.startsWith('/snapshots/')) {
-        if (!imported) return send(res, 404, { error: 'on-disk sessions have no snapshots — run /context-export in that session' });
+        if (!imported) return send(res, 404, { error: 'on-disk sessions have no snapshots — run /snapshot in that session' });
         const f = safeJoin(path.join(dir, 'snapshots'), rest.slice('/snapshots/'.length));
         if (!f || !fs.existsSync(f)) return send(res, 404, { error: 'snapshot not found' });
         return send(res, 200, await fsp.readFile(f), MIME['.json']);

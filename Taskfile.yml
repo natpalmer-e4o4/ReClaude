@@ -31,8 +31,8 @@ tasks:
     cmds: [open http://127.0.0.1:7331]
 
   skill:
-    desc: Install/sync the context-export skill into ~/.claude/skills
-    cmds: [cp -R skill/ ~/.claude/skills/context-export/]
+    desc: Install/sync the snapshot skill into ~/.claude/skills
+    cmds: [cp -R skill/ ~/.claude/skills/snapshot/]
 
   import:
     desc: "Import a session transcript by id: task import -- <session-id>"

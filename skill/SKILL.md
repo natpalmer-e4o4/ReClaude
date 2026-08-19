@@ -1,6 +1,6 @@
 ---
-name: context-export
-description: Export the current Claude Code session to the local ReClaude container — transcript, subagent files, and an as-transcribed snapshot of the in-context system prompt and tool definitions. Use when the user runs /context-export or asks to export/inspect this session's context.
+name: snapshot
+description: Export the current Claude Code session to the local ReClaude container — transcript, subagent files, and an as-transcribed snapshot of the in-context system prompt and tool definitions. Use when the user runs /snapshot or asks to export/inspect this session's context.
 ---
 
 # Context Export
@@ -123,7 +123,7 @@ in the transcript's `deferred_tools_delta` records — skip them.
 ## Step 5 — assemble and upload the snapshot
 
 ```bash
-python3 ~/.claude/skills/context-export/scripts/assemble.py <staging-dir>/ctx-export <session-id>
+python3 ~/.claude/skills/snapshot/scripts/assemble.py <staging-dir>/ctx-export <session-id>
 ```
 
 The script bundles the staging dir plus on-disk rules files (`~/.claude/CLAUDE.md`,

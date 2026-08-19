@@ -3,7 +3,7 @@
 
 Usage: assemble.py <staging-dir> <session-id> [--server http://127.0.0.1:7331]
 
-Staging layout (written by the model during /context-export):
+Staging layout (written by the model during /snapshot):
   meta.json                     {sessionId, model, claudeCodeVersion, notes}
   system-prompt/NN-<slug>.md    one file per system-prompt section, verbatim
   tools/<name>.json             {name, description, schema} per loaded tool

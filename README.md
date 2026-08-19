@@ -6,7 +6,7 @@ Explore the full context of any Claude Code session — system prompt, rules, sk
 tool definitions, attachments, and messages — at any point in time, scrubbed on a
 timeline. Sessions are discovered from `~/.claude` automatically; the parts that
 exist *only* inside the model's context are captured by invoking the
-`context-export` skill from inside a live session.
+`snapshot` skill from inside a live session.
 
 ### 🔎 [Live demo →](https://natpalmer-e4o4.github.io/ReClaude/)
 
@@ -25,7 +25,7 @@ The transcript JSONL on disk (`~/.claude/projects/<slug>/<session>.jsonl`) recor
 messages, attachments (deferred-tool deltas, skill listings, MCP instructions),
 token usage, and compaction events — but **the system prompt and full tool schemas
 exist only inside the model's context window**. The only sensor that can capture
-them is the model itself, so `/context-export` has Claude transcribe its own
+them is the model itself, so `/snapshot` has Claude transcribe its own
 system prompt section-by-section and its loaded tool schemas verbatim, then ship
 them alongside the transcript. The viewer labels this material "as transcribed" —
 the sensor is a language model and can be lossy; sections it had to truncate are
@@ -45,7 +45,7 @@ same server in a container with read-only mounts and a named volume instead.
 Then, in any Claude Code session:
 
 ```
-/context-export
+/snapshot
 ```
 
 and open http://127.0.0.1:7331. The port is bound to loopback only — transcripts
@@ -54,7 +54,7 @@ contain real project data and secrets.
 The skill lives in `skill/` (source of truth) and is installed by copying:
 
 ```bash
-cp -R skill/ ~/.claude/skills/context-export/
+cp -R skill/ ~/.claude/skills/snapshot/
 ```
 
 ## Demo mode
@@ -118,7 +118,7 @@ path, and search falls back to a client-side scan. GitHub Pages serves `docs/`.
 
 ```
 server/           zero-dependency Node server + static SPA (no build step)
-skill/            the context-export skill (SKILL.md + scripts/assemble.py)
+skill/            the snapshot skill (SKILL.md + scripts/assemble.py)
 Dockerfile        node:22-alpine, COPY only
 docker-compose.yml
 ```

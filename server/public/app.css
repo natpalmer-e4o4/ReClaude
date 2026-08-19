@@ -83,7 +83,9 @@ a:hover { text-decoration: underline; }
 
 /* ---------- header ---------- */
 .masthead { padding: 34px 0 10px; display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
-.masthead h1 { font-size: 22px; font-weight: 700; letter-spacing: .30em; text-transform: uppercase; }
+/* the wordmark is a portmanteau — it has to keep its mixed case to read as
+   Re + Claude, so no uppercasing here and only enough tracking to stay airy */
+.masthead h1 { font-size: 23px; font-weight: 700; letter-spacing: .06em; }
 .masthead h1 .dim { color: var(--accent); }
 .masthead .sub { color: var(--muted); font-size: 13px; }
 .crumb { padding: 22px 0 4px; font-size: 13px; color: var(--muted); }

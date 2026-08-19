@@ -470,7 +470,7 @@ function toolDefTarget(s, name) {
       content: `"${name}" is a deferred tool: only its NAME was in the model's context (surfaced via a deferred_tools_delta attachment). Its full schema enters context only when fetched with ToolSearch during the session, and it was not transcribed into this session's snapshot.` };
   }
   return { kind: 'text', badge: 'tool definition', color: 'var(--k-tool)', title: name,
-    content: `No definition for "${name}" was captured for this session. System-prompt tool definitions exist only when /context-export transcribed them into a snapshot.` };
+    content: `No definition for "${name}" was captured for this session. System-prompt tool definitions exist only when /snapshot transcribed them into a snapshot.` };
 }
 
 function toolNamesOf(r, model) {
@@ -669,7 +669,7 @@ async function homeView() {
         </div>
       </a>`;
     }).join('') : `<div class="empty-state"><h2>${sessions.length ? 'No sessions match' : 'No sessions found'}</h2>
-      <p>${sessions.length ? 'Try a different search — content search needs at least 3 characters.' : 'On-disk sessions appear automatically; run <code>/context-export</code> in a live session to add snapshots.'}</p></div>`;
+      <p>${sessions.length ? 'Try a different search — content search needs at least 3 characters.' : 'On-disk sessions appear automatically; run <code>/snapshot</code> in a live session to add snapshots.'}</p></div>`;
   };
 
   renderCards();
@@ -733,7 +733,7 @@ async function sessionView(id) {
       <h1 style="letter-spacing:.02em;text-transform:none;font-size:19px">${esc(title)}</h1>
       <span class="sub">${esc(manifest.project || manifest.cwd || '')}</span>
     </header>
-    ${snapshots.length ? '' : `<div class="banner">No export found for this session — data is limited to the on-disk transcript (no system prompt or tool definitions). Run <code>/context-export</code> inside that session to capture them.</div>`}
+    ${snapshots.length ? '' : `<div class="banner">No export found for this session — data is limited to the on-disk transcript (no system prompt or tool definitions). Run <code>/snapshot</code> inside that session to capture them.</div>`}
     <div id="agentFocusBar" class="agent-focus-bar" style="display:none"></div>
     <div class="tape-wrap">
       <div class="tape-head">
@@ -2233,7 +2233,7 @@ function groundHead(s, title, badge, note) {
     </div></div>`;
 }
 
-const noSnapshotWarning = `<div class="layer"><div class="body"><p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/context-export</code> run from within the live session can capture them.</p></div></div>`;
+const noSnapshotWarning = `<div class="layer"><div class="body"><p class="warn">No snapshot exported for this session — the system prompt and tool schemas exist only inside the model's context, so only <code>/snapshot</code> run from within the live session can capture them.</p></div></div>`;
 
 function snapPicker(s) {
   return s.snapshots.length > 1
@@ -2617,7 +2617,7 @@ function renderItemPreview(s, pane, pv) {
 
 function renderSnapshotTab(s, panel) {
   if (!s.snapshots.length) {
-    panel.innerHTML = layer('Snapshots', 'none', '<p class="hint">Run /context-export inside the live session to capture the in-context material.</p>', true);
+    panel.innerHTML = layer('Snapshots', 'none', '<p class="hint">Run /snapshot inside the live session to capture the in-context material.</p>', true);
     return;
   }
   if (s.snapIdx < 0 || s.snapIdx >= s.snapshots.length) s.snapIdx = s.snapshots.length - 1;
