@@ -12,7 +12,6 @@ precaches everything for offline use.
 import json
 import os
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
@@ -112,14 +111,26 @@ def main():
         if mark.is_file():
             shutil.copy2(mark, OUT / 'icon.png')
             icons.append({'src': 'icon.png', 'sizes': '64x64', 'type': 'image/png'})
-            if shutil.which('sips'):
-                for size in (192, 512):
+            for size in (192, 512):
+                made = False
+                if shutil.which('sips'):  # macOS
                     subprocess.run(['sips', '-z', str(size), str(size), str(OUT / 'icon.png'),
                                     '--out', str(OUT / f'icon-{size}.png')],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                    if (OUT / f'icon-{size}.png').is_file():
-                        icons.append({'src': f'icon-{size}.png', 'sizes': f'{size}x{size}',
-                                      'type': 'image/png', 'purpose': 'any maskable'})
+                    made = (OUT / f'icon-{size}.png').is_file()
+                if not made:
+                    try:  # any platform, if Pillow happens to be installed
+                        from PIL import Image
+                        with Image.open(OUT / 'icon.png') as im:
+                            im.resize((size, size), Image.NEAREST).save(OUT / f'icon-{size}.png')
+                        made = True
+                    except Exception:
+                        made = False
+                if made:
+                    icons.append({'src': f'icon-{size}.png', 'sizes': f'{size}x{size}',
+                                  'type': 'image/png', 'purpose': 'any maskable'})
+            if len(icons) == 1:
+                print('note: only the 64px icon (install sips or Pillow for 192/512)', file=sys.stderr)
 
         write('manifest.webmanifest', json.dumps({
             'name': 'ReClaude', 'short_name': 'ReClaude',
@@ -160,8 +171,11 @@ self.addEventListener('fetch', (e) => {{
         print('serve locally: python3 -m http.server -d docs 8080')
         return 0
     finally:
-        srv.send_signal(signal.SIGTERM)
-        srv.wait(timeout=10)
+        srv.terminate()  # SIGTERM on POSIX, TerminateProcess on Windows
+        try:
+            srv.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            srv.kill()
         shutil.rmtree(tmp, ignore_errors=True)
 
 

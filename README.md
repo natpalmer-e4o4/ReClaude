@@ -24,6 +24,24 @@ npx @natpalmer-e4o4/reclaude       # run it now
 npm i -g @natpalmer-e4o4/reclaude  # or keep it: `reclaude`
 ```
 
+<details><summary>Windows, macOS and Linux one-liners</summary>
+
+```powershell
+# Windows (PowerShell). -AtLogon also registers a logon task, which keeps the
+# file-history mirror running so backups are captured before Claude Code prunes them.
+irm https://raw.githubusercontent.com/natpalmer-e4o4/ReClaude/main/install/install.ps1 | iex
+```
+
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/natpalmer-e4o4/ReClaude/main/install/install.sh | sh
+
+# or, once the tap is published
+brew tap natpalmer-e4o4/tools && brew install reclaude
+brew services start reclaude
+```
+</details>
+
 It finds your sessions in `~/.claude` and opens the viewer on
 `http://127.0.0.1:7331`. Loopback only — transcripts contain real project data.
 
@@ -121,7 +139,10 @@ relative path. GitHub Pages serves it.
 bin/cli.js         the reclaude command
 server/            zero-dependency Node server + the SPA (no build step)
 skills/snapshot/   the /snapshot skill and its assemble helper
+.claude-plugin/    plugin + marketplace manifests
 scripts/           demo seed, static build, tests
+install/           one-line installers (PowerShell, sh)
+packaging/         homebrew formula, winget notes
 seed/              the redacted demo session
 docs/              built static demo (generated)
 ```

@@ -1,0 +1,61 @@
+name: ci
+
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Syntax check
+        run: |
+          node --check server/server.js
+          node --check server/public/app.js
+          node --check bin/cli.js
+      - name: CLI works
+        run: |
+          node bin/cli.js --version
+          node bin/cli.js where
+      - name: Install test deps
+        run: npm install --prefix scripts --silent
+      - name: Regression test (hermetic, uses the bundled demo seed)
+        run: node scripts/test-hermetic.mjs
+      - name: Plugin manifests are valid JSON
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/plugin.json'))"
+          node -e "JSON.parse(require('fs').readFileSync('.claude-plugin/marketplace.json'))"
+
+  powershell:
+    name: powershell installer parses
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse install.ps1
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            "install/install.ps1", [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Error $_ }; exit 1 }
+          Write-Host "install.ps1 parses cleanly"
+
+  no-identifiers:
+    name: no personal identifiers
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sweep tracked files
+        run: |
+          if git grep -InE "natpalmer1776|icloud\.com|autolabs|AutoLabs|Lilith" -- . ; then
+            echo "::error::personal identifier found in tracked files"; exit 1
+          fi
+          echo "sweep clean"
