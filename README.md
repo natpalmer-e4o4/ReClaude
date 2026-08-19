@@ -2,130 +2,133 @@
 
 **A flight recorder for the Claude Code context window.**
 
-Explore the full context of any Claude Code session — system prompt, rules, skills,
-tool definitions, attachments, and messages — at any point in time, scrubbed on a
-timeline. Sessions are discovered from `~/.claude` automatically; the parts that
-exist *only* inside the model's context are captured by invoking the
-`snapshot` skill from inside a live session.
+Rewind any session. See exactly what the model could see at any moment — system
+prompt, tool schemas, rules, skills, MCP instructions, memory, and every message
+in the window — scrubbed on a timeline.
 
 ### 🔎 [Live demo →](https://natpalmer-e4o4.github.io/ReClaude/)
 
-A static, installable build carrying the redacted session in which this tool was
-built — so you can explore the construction of the viewer *in* the viewer. No
-install, no server, works offline once loaded.
+The demo carries the redacted session in which this tool was built. You explore
+the construction of the viewer, in the viewer. No install, no server, works
+offline once loaded.
 
 ![zero dependencies](https://img.shields.io/badge/dependencies-none-27a578)
 ![node](https://img.shields.io/badge/node-%E2%89%A518-4a8fdd)
 ![docker optional](https://img.shields.io/badge/docker-optional-8a5fe8)
 ![license MIT](https://img.shields.io/badge/license-MIT-c08618)
 
-## Why a skill does the export
-
-The transcript JSONL on disk (`~/.claude/projects/<slug>/<session>.jsonl`) records
-messages, attachments (deferred-tool deltas, skill listings, MCP instructions),
-token usage, and compaction events — but **the system prompt and full tool schemas
-exist only inside the model's context window**. The only sensor that can capture
-them is the model itself, so `/snapshot` has Claude transcribe its own
-system prompt section-by-section and its loaded tool schemas verbatim, then ship
-them alongside the transcript. The viewer labels this material "as transcribed" —
-the sensor is a language model and can be lossy; sections it had to truncate are
-marked `[ABRIDGED BY EXPORTER]`.
-
-## Usage
+## Install
 
 ```bash
-node server/server.js         # native, zero dependencies — viewer + import API on http://127.0.0.1:7331
-# or with go-task installed: `task serve`   (`task --list` shows all operations)
+npx @natpalmer-e4o4/reclaude       # run it now
+npm i -g @natpalmer-e4o4/reclaude  # or keep it: `reclaude`
 ```
 
-Running natively, the server reads `~/.claude/projects` and `~/.claude/file-history`
-directly. Docker is **optional** — `docker compose up -d` (or `task up`) runs the
-same server in a container with read-only mounts and a named volume instead.
+It finds your sessions in `~/.claude` and opens the viewer on
+`http://127.0.0.1:7331`. Loopback only — transcripts contain real project data.
 
-Then, in any Claude Code session:
+From a checkout, `node server/server.js` (or `task serve`) does the same thing.
+Docker is optional: `docker compose up -d` runs the identical server in a
+container with read-only mounts.
+
+Then add the capture skill to Claude Code:
 
 ```
-/snapshot
+/plugin marketplace add natpalmer-e4o4/ReClaude
+/plugin install snapshot@reclaude
 ```
 
-and open http://127.0.0.1:7331. The port is bound to loopback only — transcripts
-contain real project data and secrets.
+`reclaude install-skill` copies it in instead, if you'd rather not use plugins.
 
-The skill lives in `skill/` (source of truth) and is installed by copying:
+## Why a skill has to do the capture
 
-```bash
-cp -R skill/ ~/.claude/skills/snapshot/
-```
+The transcript on disk records messages, attachments, token usage, and
+compactions. It does not record the system prompt or the tool schemas. Those
+exist only inside the model's context window — nothing writes them to disk.
+
+So the model captures them itself. Run `/snapshot` in a session and Claude
+transcribes its own system prompt section by section, plus every tool schema it
+holds, and ships them next to the transcript.
+
+The model is the sensor here, and sensors drift. The viewer labels this material
+"as transcribed," and anything the model had to truncate is marked
+`[ABRIDGED BY EXPORTER]`. Repeat captures reuse a content-addressed cache: the
+model compares fingerprints instead of retyping 40k tokens of static prompt.
+
+## What you get
+
+**The tape.** Tokens-in-window over the session, with a tick strip colored by
+event kind. Click to select a moment, drag to zoom, double-click to reset. The
+x-axis is real time, so bursts look busy and idle stretches collapse into
+labelled hatched bands instead of eating the whole width.
+
+**Two lenses.** *Timeline* is what happened in the zoomed range. *Context window*
+is what the model could see at the selected record — the parent-chain walk, not
+the chronological prefix, because edits and retries branch the tree.
+
+**The ground truth,** each on its own tab: system prompt, tools, skills, MCP
+instructions, and Claude's persistent memory for the project.
+
+**Sub-agents as sub-timelines.** Parallel fan-outs collapse into a chip; hover to
+pick one; open it and the whole instrument switches to that agent's transcript.
+Escape returns you to exactly where you were.
+
+**Real file edits.** Not the conversation's description of an edit — the actual
+stored versions from Claude Code's edit tracker, diffed against their
+predecessor. ReClaude mirrors that store, because Claude Code prunes it.
+
+**Six themes,** three dark and three light. Categorical colors are validated per
+mode for contrast and colorblind separation, not picked by eye.
+
+## How the reconstruction works
+
+Records link by `parentUuid`, so the context at any point is the walk from that
+record back to the root. Compaction boundaries carry `parentUuid: null`, which
+means the walk stops at the live window's edge on its own — everything older
+survives only in the summary, and the viewer says so.
+
+Sidechain records are subagent turns and never entered the main window.
+Attachments differ in kind: `deferred_tools_delta` accumulates, `skill_listing`
+and `output_style` supersede.
+
+Human turns are identified by the harness stamp `origin.kind: "human"`, never by
+guessing from content. That matters — skill loads and post-compaction summaries
+arrive as user-role records but nobody typed them.
 
 ## Demo mode
 
-`DEMO_SEED=1` (see `docker-compose.yml`) serves the redacted session that built
-this project — transcript, snapshot, and the subagent that redesigned the
-snapshot tab — loaded from `seed/` into **memory only**: nothing is written to
-the data volume, and it disappears on restart. Usernames, email, employer and
-personal project names are redacted; embedded screenshots are replaced with a
-styled SVG placeholder ("DEMO ONLY — SCREENSHOT REDACTED FOR AUTHOR PRIVACY").
-Off by default.
+`DEMO_SEED=1` serves the redacted build session from `seed/`, in memory only.
+Nothing touches your data directory and it vanishes on restart.
 
-To refresh the seed (e.g. to include newer messages before sharing):
+Rebuild it with `python3 scripts/build-demo-seed.py`. The script holds the
+redaction map outside version control, swaps every screenshot for a placeholder,
+validates the JSON, and fails hard if any identifier survives the sweep.
 
-```bash
-python3 scripts/build-demo-seed.py   # rebuilds seed/ from the live transcript
-docker compose up -d --build         # bakes it into the image
-```
-
-The script holds the redaction map, swaps every embedded image for the SVG
-placeholder, validates all JSON, and hard-fails if any identifier survives.
-
-## Static / PWA build
+## Static build
 
 ```bash
-task static     # or: python3 scripts/build-static-demo.py
+task static
 ```
 
-Boots the server with `DEMO_SEED=1`, harvests its real API responses into flat
-files, and emits `docs/` — the SPA plus the seed data, a web app manifest, and a
-service worker that precaches everything. The same `app.js` runs in both modes:
-a `window.CTX_STATIC` flag flips every request from `/api/…` to a relative file
-path, and search falls back to a client-side scan. GitHub Pages serves `docs/`.
-
-## What the viewer shows
-
-- **Context tape** — the signature instrument: an area chart of tokens-in-window
-  per record (from `message.usage`: cache-read + cache-write + fresh input), with
-  a tick strip colored by record kind and dashed splices where the context was
-  compacted. Click anywhere to scrub.
-- **Context at this point** — the reconstructed effective context at the selected
-  record: token gauge, system prompt + tool schemas + rules files (from the
-  snapshot), cumulative deferred-tool/skill/MCP state, and the exact message
-  window.
-- **Record / Snapshot / Files** tabs — raw JSONL record, the full export
-  snapshot(s), and companion files (subagent transcripts, workflow journals).
-
-## Reconstruction rules (derived from real transcripts)
-
-- Records link via `parentUuid`; context-at-point is the **parent-chain walk** to
-  root, not the chronological prefix — edits and retries branch the tree.
-- `system/compact_boundary` records have `parentUuid: null`, so the chain walk
-  naturally stops at the live context's edge after a compaction; the boundary's
-  `compactMetadata` (preTokens → postTokens, preserved uuids) is surfaced.
-- `isSidechain: true` records are subagent turns and are excluded from the main
-  window (shown dimmed in the rail, toggleable).
-- Attachment kinds have distinct semantics: `deferred_tools_delta` accumulates,
-  `skill_listing` / `output_style` supersede, `mcp_instructions_delta` accumulates.
+Boots the server with the demo seed, harvests its real API responses into flat
+files, and writes `docs/` — the app, the data, a manifest, and a service worker.
+The same `app.js` runs both ways: a flag flips every request from `/api/…` to a
+relative path. GitHub Pages serves it.
 
 ## Layout
 
 ```
-server/           zero-dependency Node server + static SPA (no build step)
-skill/            the snapshot skill (SKILL.md + scripts/assemble.py)
-Dockerfile        node:22-alpine, COPY only
-docker-compose.yml
+bin/cli.js         the reclaude command
+server/            zero-dependency Node server + the SPA (no build step)
+skills/snapshot/   the /snapshot skill and its assemble helper
+scripts/           demo seed, static build, tests
+seed/              the redacted demo session
+docs/              built static demo (generated)
 ```
 
-Storage inside the container volume: `sessions/<id>/transcript.jsonl` (verbatim),
-`meta.json` (computed at import), `snapshots/*.json`, `files/…`. All
-reconstruction happens client-side, so re-imports and viewer upgrades are free.
+Storage: `sessions/<id>/transcript.jsonl` verbatim, plus computed `meta.json`,
+`snapshots/`, and `files/`. Reconstruction happens in the browser, so re-imports
+and viewer upgrades cost nothing.
 
 ## License
 

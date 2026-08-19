@@ -1,0 +1,9 @@
+{
+  "name": "snapshot",
+  "description": "Capture the current Claude Code session into ReClaude — transcript, subagent files, and an as-transcribed snapshot of the in-context system prompt and tool definitions.",
+  "version": "0.1.0",
+  "author": { "name": "natpalmer-e4o4", "url": "https://github.com/natpalmer-e4o4" },
+  "homepage": "https://github.com/natpalmer-e4o4/ReClaude",
+  "repository": "https://github.com/natpalmer-e4o4/ReClaude",
+  "license": "MIT"
+}

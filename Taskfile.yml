@@ -32,7 +32,7 @@ tasks:
 
   skill:
     desc: Install/sync the snapshot skill into ~/.claude/skills
-    cmds: [cp -R skill/ ~/.claude/skills/snapshot/]
+    cmds: [cp -R skills/snapshot/ ~/.claude/skills/snapshot/]
 
   import:
     desc: "Import a session transcript by id: task import -- <session-id>"

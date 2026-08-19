@@ -123,8 +123,12 @@ in the transcript's `deferred_tools_delta` records — skip them.
 ## Step 5 — assemble and upload the snapshot
 
 ```bash
-python3 ~/.claude/skills/snapshot/scripts/assemble.py <staging-dir>/ctx-export <session-id>
+python3 <this skill's base directory>/scripts/assemble.py <staging-dir>/ctx-export <session-id>
 ```
+
+(Claude Code prints the skill's base directory when this skill loads; it is
+`~/.claude/skills/snapshot` for a manual install and the plugin cache directory
+when installed via `/plugin`.)
 
 The script bundles the staging dir plus on-disk rules files (`~/.claude/CLAUDE.md`,
 project `CLAUDE.md`s, files they `@`-include) into one snapshot JSON and POSTs it.

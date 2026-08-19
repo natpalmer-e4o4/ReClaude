@@ -23,7 +23,19 @@ const { URL } = require('url');
 const defaultDir = (p) => (fs.existsSync(p) ? p : null);
 const PORT = parseInt(process.env.PORT || '7331', 10);
 const HOST = process.env.HOST || '0.0.0.0'; // compose binds host side to 127.0.0.1
-const DATA_DIR = path.resolve(process.env.DATA_DIR || path.join(__dirname, '..', 'data'));
+/* Where imported sessions live. An explicit DATA_DIR always wins (Docker sets
+   it). Otherwise: a checkout that already has ./data keeps using it, so existing
+   installs don't move; anything else — notably `npx`, which runs from a throwaway
+   cache — gets the platform's user-data location. */
+function defaultDataDir() {
+  const repoData = path.join(__dirname, '..', 'data');
+  if (fs.existsSync(repoData)) return repoData;
+  const home = os.homedir();
+  if (process.platform === 'win32') return path.join(process.env.LOCALAPPDATA || path.join(home, 'AppData', 'Local'), 'ReClaude');
+  if (process.platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'ReClaude');
+  return path.join(process.env.XDG_DATA_HOME || path.join(home, '.local', 'share'), 'reclaude');
+}
+const DATA_DIR = path.resolve(process.env.DATA_DIR || defaultDataDir());
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const MAX_BODY = 512 * 1024 * 1024; // transcripts can be large
 

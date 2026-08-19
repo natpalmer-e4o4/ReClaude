@@ -1,0 +1,13 @@
+{
+  "name": "reclaude",
+  "description": "ReClaude — a flight recorder for the Claude Code context window.",
+  "owner": { "name": "natpalmer-e4o4", "url": "https://github.com/natpalmer-e4o4" },
+  "plugins": [
+    {
+      "name": "snapshot",
+      "source": ".",
+      "version": "0.1.0",
+      "description": "Capture the current session into ReClaude: transcript, subagent files, and the in-context system prompt and tool definitions."
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@natpalmer-e4o4/reclaude",
+  "version": "0.1.0",
+  "description": "A flight recorder for the Claude Code context window — explore any session's system prompt, tools, rules, and messages at any point in time.",
+  "keywords": ["claude", "claude-code", "context", "transcript", "viewer", "observability"],
+  "homepage": "https://natpalmer-e4o4.github.io/ReClaude/",
+  "bugs": "https://github.com/natpalmer-e4o4/ReClaude/issues",
+  "repository": { "type": "git", "url": "git+https://github.com/natpalmer-e4o4/ReClaude.git" },
+  "license": "MIT",
+  "author": "natpalmer-e4o4",
+  "type": "commonjs",
+  "bin": { "reclaude": "bin/cli.js" },
+  "main": "server/server.js",
+  "engines": { "node": ">=18" },
+  "os": ["darwin", "linux", "win32"],
+  "files": ["bin/", "server/", "skills/", "seed/", "README.md", "LICENSE"],
+  "scripts": {
+    "start": "node bin/cli.js",
+    "test": "node scripts/test-hermetic.mjs"
+  },
+  "devDependencies": { "jsdom": "^25.0.0" }
+}
