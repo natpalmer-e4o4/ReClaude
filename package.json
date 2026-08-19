@@ -1,6 +1,6 @@
 {
   "name": "@natpalmer-e4o4/reclaude",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A flight recorder for the Claude Code context window — explore any session's system prompt, tools, rules, and messages at any point in time.",
   "keywords": ["claude", "claude-code", "context", "transcript", "viewer", "observability"],
   "homepage": "https://natpalmer-e4o4.github.io/ReClaude/",

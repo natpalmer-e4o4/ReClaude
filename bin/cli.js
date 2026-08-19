@@ -38,7 +38,16 @@ const value = (...names) => {
   return null;
 };
 
-const cmd = argv.find((a) => !a.startsWith('-')) || 'serve';
+// the command is the first bare word that is NOT the value of a preceding
+// option — otherwise `--port 7361` makes "7361" look like a command
+const VALUE_FLAGS = new Set(['-p', '--port', '--host', '--data-dir']);
+const cmd = (() => {
+  for (let i = 0; i < argv.length; i++) {
+    if (VALUE_FLAGS.has(argv[i])) { i++; continue; }
+    if (!argv[i].startsWith('-')) return argv[i];
+  }
+  return 'serve';
+})();
 
 if (flag('-h', '--help')) { process.stdout.write(HELP); process.exit(0); }
 if (flag('-v', '--version')) { process.stdout.write(pkg.version + '\n'); process.exit(0); }
@@ -66,17 +75,17 @@ if (cmd === 'where') {
 
 if (cmd !== 'serve') { console.error(`unknown command: ${cmd}\n`); process.stdout.write(HELP); process.exit(1); }
 
-const env = { ...process.env };
+// mutate process.env in place; replacing the object wholesale does not
+// propagate to modules that read it afterwards
 const port = value('-p', '--port');
-if (port) env.PORT = port;
+if (port) process.env.PORT = port;
 const host = value('--host');
-if (host) env.HOST = host;
+process.env.HOST = host || process.env.HOST || '127.0.0.1'; // loopback by default
 const dataDir = value('--data-dir');
-if (dataDir) env.DATA_DIR = path.resolve(dataDir);
-if (flag('--demo')) env.DEMO_SEED = '1';
-if (flag('--no-projects')) { env.HOST_PROJECTS = ''; env.FILE_HISTORY = ''; }
-
-process.env = env;
+if (dataDir) process.env.DATA_DIR = path.resolve(dataDir);
+if (flag('--demo')) process.env.DEMO_SEED = '1';
+if (flag('--no-projects')) { process.env.HOST_PROJECTS = ''; process.env.FILE_HISTORY = ''; }
+const env = process.env;
 if (!flag('--no-open')) {
   const url = `http://${env.HOST || '127.0.0.1'}:${env.PORT || 7331}/`;
   setTimeout(() => {
