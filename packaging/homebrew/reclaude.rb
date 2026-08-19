@@ -5,15 +5,15 @@
 class Reclaude < Formula
   desc "Flight recorder for the Claude Code context window"
   homepage "https://github.com/natpalmer-e4o4/ReClaude"
-  url "https://github.com/natpalmer-e4o4/ReClaude/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "REPLACE_WITH_RELEASE_TARBALL_SHA256"
+  url "https://github.com/natpalmer-e4o4/ReClaude/archive/refs/tags/v0.1.1.tar.gz"
+  sha256 "6bfecf18bb58e72b653f5f8c2e766a72b2d4fe393461d7c471401e6feab70154"
   license "MIT"
 
   depends_on "node"
 
   def install
     libexec.install Dir["*"]
-    (bin/"reclaude").write_env_script libexec/"bin/cli.js", PATH: "#{Formula["node"].opt_bin}:$PATH"
+    (bin/"reclaude").write_env_script libexec/"bin/cli.js", PATH: "#{formula_opt_bin("node")}:$PATH"
     chmod 0755, bin/"reclaude"
   end
 
