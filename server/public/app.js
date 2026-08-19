@@ -2338,7 +2338,7 @@ function renderMemoryTab(s, panel) {
   const meta = (content) => {
     const m = /^---\n([\s\S]*?)\n---/.exec(content || '');
     if (!m) return {};
-    const get = (k) => (new RegExp(`^\\\\s*${k}:\\\\s*(.+)$`, 'm').exec(m[1]) || [])[1]?.replace(/^["']|["']$/g, '').trim();
+    const get = (k) => (new RegExp(`^\\s*${k}:\\s*(.+)$`, 'm').exec(m[1]) || [])[1]?.replace(/^["']|["']$/g, '').trim();
     return { type: get('type'), description: get('description') };
   };
   const parts = [groundHead(s, 'memory · ground truth',
