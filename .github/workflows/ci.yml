@@ -55,7 +55,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Sweep tracked files
         run: |
-          if git grep -InE "natpalmer1776|icloud\.com|autolabs|AutoLabs|Lilith" -- . ; then
+          # exclude this file: it necessarily contains the very patterns it hunts
+          if git grep -InE "natpalmer1776|icloud\.com|autolabs|AutoLabs|Lilith" \
+               -- . ':(exclude).github/workflows/ci.yml' ; then
             echo "::error::personal identifier found in tracked files"; exit 1
           fi
           echo "sweep clean"

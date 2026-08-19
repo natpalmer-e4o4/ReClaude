@@ -3,9 +3,13 @@ import { JSDOM } from 'jsdom';
 
 const BASE = process.env.BASE || 'http://127.0.0.1:7331';
 
-const ROOT = new URL('..', import.meta.url).pathname;
-const html = fs.readFileSync(ROOT + 'server/public/index.html', 'utf8');
-const appjs = fs.readFileSync(ROOT + 'server/public/app.js', 'utf8');
+import { fileURLToPath } from 'url';
+import path from 'path';
+// fileURLToPath, not .pathname: on Windows the latter yields "/D:/..." and
+// string-joining it produces D:\D:\...
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+const html = fs.readFileSync(path.join(ROOT, 'server/public/index.html'), 'utf8');
+const appjs = fs.readFileSync(path.join(ROOT, 'server/public/app.js'), 'utf8');
 
 // works against the server API or a static build (docs/)
 let sessions, isStatic = false;
