@@ -1,5 +1,5 @@
 /* ReClaude static demo — precache everything, serve cache-first. */
-const CACHE = 'reclaude-1787102083';
+const CACHE = 'reclaude-1787120426';
 const ASSETS = [
 "index.html",
 "app.css",

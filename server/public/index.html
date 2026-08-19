@@ -18,6 +18,22 @@
   </div>
   <div id="view"></div>
 </div>
+
+<!-- Shown instead of the app on narrow screens. ReClaude is a three-pane
+     instrument (timeline, event list, preview) that needs real width; stacking
+     it into a phone column produces something worse than an honest message. -->
+<div id="tooNarrow" class="too-narrow">
+  <div class="tn-card">
+    <h1 class="tn-mark"><span class="dim">Re</span>Claude</h1>
+    <p class="tn-lead">This one needs a desktop.</p>
+    <p>ReClaude puts a timeline, an event list and a full record preview
+       side by side, and reads a lot of monospace detail. Below about 900px
+       that stops being usable, so it isn't pretending otherwise.</p>
+    <p class="tn-meta">Open it again on a wider screen — your session data and
+       theme are waiting.</p>
+    <button id="tnAnyway" type="button" class="mini-btn">show it anyway</button>
+  </div>
+</div>
 <script src="/vendor/codemirror/codemirror.js"></script>
 <script src="/vendor/codemirror/javascript.js"></script>
 <script src="/app.js"></script>

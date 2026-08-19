@@ -566,6 +566,16 @@ function tokensAt(model, idx) {
 
 // ---------- router ----------
 
+// the narrow-screen gate is CSS-driven; this is only the escape hatch
+(() => {
+  try { if (sessionStorage.getItem('rc-force-narrow')) document.documentElement.classList.add('force-narrow'); } catch {}
+  document.getElementById('tnAnyway')?.addEventListener('click', () => {
+    document.documentElement.classList.add('force-narrow');
+    try { sessionStorage.setItem('rc-force-narrow', '1'); } catch {}
+    if (state.session) drawTape(state.session); // canvases need a resize pass once visible
+  });
+})();
+
 window.addEventListener('hashchange', route);
 initTheme();
 route();

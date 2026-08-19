@@ -670,3 +670,25 @@ body.session-mode .ctx-panel.stuck .layer[open] > .body { border-top-color: tran
   display: inline-flex; align-items: center; justify-content: center; flex: none;
 }
 .theme-btn .sw i, .theme-menu .sw i { width: 5px; height: 5px; border-radius: 50%; display: block; }
+
+/* ---------- narrow-screen gate ----------
+   The app is a side-by-side instrument. Rather than stack it into a broken
+   phone layout, say so — with an escape hatch for anyone who insists. */
+.too-narrow { display: none; }
+@media (max-width: 900px) {
+  html:not(.force-narrow) body > .app { display: none; }
+  html:not(.force-narrow) .too-narrow {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px; background: var(--bg);
+  }
+}
+.tn-card {
+  max-width: 30rem; border: 1px solid var(--line); border-left: 4px solid var(--accent);
+  border-radius: 10px; background: var(--panel); padding: 22px 24px; color: var(--muted);
+}
+.tn-mark { font-size: 21px; font-weight: 700; letter-spacing: .06em; color: var(--ink); margin-bottom: 14px; }
+.tn-mark .dim { color: var(--accent); }
+.tn-lead { color: var(--ink); font-size: 15px; margin-bottom: 10px; }
+.tn-card p { font-size: 13.5px; line-height: 1.6; margin-bottom: 10px; }
+.tn-meta { color: var(--faint); }
+.tn-card .mini-btn { margin-top: 6px; }
